@@ -243,6 +243,7 @@ function clearSensitive() {
 }
 
 function showAuth(mode) {
+  window.KagNodeCore?.setSession({ authenticated: false });
   const email = state.account?.email || $("auth-email").value;
   returnView = pathView(location.pathname) || returnView;
   closeDialogs();
@@ -296,6 +297,11 @@ function showAuth(mode) {
   $("mobile-menu").setAttribute("aria-expanded", "false");
 }
 async function showDashboard() {
+  window.KagNodeCore?.setSession({
+    authenticated: !state.demo,
+    subject: state.account?.email || "",
+    name: state.account?.email || "",
+  });
   state.lastInput = Date.now();
   state.lastActivity = 0;
   state.unlocked = true;

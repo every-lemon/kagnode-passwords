@@ -70,15 +70,19 @@ def check(browser, base):
     for theme in ("dark", "light"):
         for width, height in ((1440, 1000), (820, 1100), (390, 844), (320, 740)):
             context = browser.new_context(
-                viewport={"width": width, "height": height}, reduced_motion="reduce"
+                viewport={"width": width, "height": height},
+                reduced_motion="reduce",
+                color_scheme=theme,
             )
-            context.add_init_script(f"localStorage.setItem('kagnode-theme', '{theme}')")
+            context.add_init_script(
+                f"localStorage.setItem('kagnode-theme', '{'light' if theme == 'dark' else 'dark'}')"
+            )
             page = context.new_page()
             page.on("pageerror", lambda error: errors.append(str(error)))
             for view in VIEWS:
                 page.goto(f"{base}/{view}?demo=1")
                 page.locator("#dashboard").wait_for(state="visible")
-                page.wait_for_function('document.getElementById("loading").hidden')
+                page.wait_for_function('()=>document.getElementById("loading").hidden')
                 assert (
                     page.evaluate("document.documentElement.scrollWidth") <= width + 1
                 ), (theme, width, view)
@@ -157,7 +161,7 @@ def check(browser, base):
         "Object.defineProperty(navigator, 'clipboard', {configurable:true, value:{writeText:async text=>window.__lastCopied=text,readText:async()=>window.__lastCopied}})"
     )
     page.get_by_role("button", name="Copy backup code 1", exact=True).click()
-    page.wait_for_function('window.__lastCopied === "QA-RECOVERY-1234"')
+    page.wait_for_function('()=>window.__lastCopied === "QA-RECOVERY-1234"')
     assert (
         page.locator(".backup-details-heading span").inner_text() == "2 of 2 available"
     )
@@ -395,7 +399,7 @@ def check(browser, base):
       };
     """)
     page.goto(base + "/authenticators?test-hold=status")
-    page.wait_for_function("window.__heldResponses.length === 1")
+    page.wait_for_function("()=>window.__heldResponses.length === 1")
     rect = page.locator("#loading").bounding_box()
     assert rect == {"x": 0, "y": 0, "width": 1440, "height": 1000}, rect
     logo = page.locator(".loading-logo").bounding_box()
@@ -406,7 +410,7 @@ def check(browser, base):
     page.locator(".item-title").filter(has_text="KagNode QA account").wait_for()
 
     page.goto(base + "/authenticators?test-hold=items")
-    page.wait_for_function("window.__heldResponses.length === 1")
+    page.wait_for_function("()=>window.__heldResponses.length === 1")
     page.locator(".skeleton-card").first.wait_for()
     assert page.locator("#items").get_attribute("aria-busy") == "true"
     page.screenshot(path=str(ARTIFACTS / "vault-skeleton.png"))

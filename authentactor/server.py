@@ -423,6 +423,9 @@ def create_app(data_dir, preview=False, legacy_email=None):
     from .web_assets import register_assets
 
     register_assets(app)
+    from .kagnode_core import register_flask, register_flask_api
+
+    register_flask(app, "passwords")
     app.url_map.strict_slashes = False
     app.config.update(MAX_CONTENT_LENGTH=16_000_000, JSON_SORT_KEYS=False)
     directory = Path(data_dir)
@@ -1240,6 +1243,22 @@ def create_app(data_dir, preview=False, legacy_email=None):
             )
         except AccountLinkError as error:
             raise VaultError(str(error), error.status)
+
+    def core_administrator():
+        state = g.vault_session
+        with connect() as connection:
+            owner = connection.execute(
+                "SELECT account_id FROM legacy_vault_owners WHERE legacy_id=1"
+            ).fetchone()
+            if not owner:
+                owner = connection.execute(
+                    "SELECT id FROM accounts ORDER BY rowid LIMIT 1"
+                ).fetchone()
+        return state["account_id"] == (
+            os.environ.get("KAGNODE_ACCOUNT_ADMIN", "") or (owner[0] if owner else "")
+        )
+
+    register_flask_api(app, "passwords", authenticated, core_administrator)
 
     app.extensions["vault_testing"] = {
         "sessions": sessions,
