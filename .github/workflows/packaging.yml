@@ -73,4 +73,4 @@ jobs:
 
           [Installation and requirements](https://github.com/every-lemon/kagnode-passwords#installation-and-downloads) · [Verification limits](https://github.com/every-lemon/kagnode-passwords/blob/main/docs/VERIFICATION.md)
           RELEASE_NOTES
-          gh release create "$GITHUB_REF_NAME" packages/* --verify-tag --prerelease --latest=false --title "KagNode Authenticator $product_version · Packaging preview $packaging_revision" --notes-file "$release_notes"
+          gh release create "$GITHUB_REF_NAME" packages/* --verify-tag --prerelease --latest=false --title "KagNode Passwords $product_version · Packaging preview $packaging_revision" --notes-file "$release_notes"
