@@ -1,5 +1,9 @@
 # 0.6.0-beta.1 — KagNode Passwords preview
 
+## Core integration preview
+
+Shared local UI components, manual animated navigation, natural scrolling rails and icon account menus. Added separate appearance-only account connections and signed UI patch controls. Existing storage, native services and prior release records are retained.
+
 ## 0.6.0-beta.1 packaging.2
 
 - Renamed the GitHub repository to kagnode-passwords and updated source/download links.

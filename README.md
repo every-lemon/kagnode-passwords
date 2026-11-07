@@ -58,6 +58,8 @@ See [operations and existing setup instructions](docs/OPERATIONS.md) for the ful
 
 ## Configuration and storage
 
+Shared presentation uses [KagNode Core](docs/CORE.md), with a pinned local fallback and reviewed server adapters. Compatible stable UI patches have a separate local-administrator policy.
+
 The legacy authentactor package/service spelling is retained for compatibility. Never delete or reinitialize an existing vault to upgrade the UI.
 
 ## Security
