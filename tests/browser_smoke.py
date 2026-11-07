@@ -94,6 +94,9 @@ def check(browser, base):
                     {"theme": theme, "width": width, "view": view, "overflow": False}
                 )
                 if view == "overview":
+                    assert page.locator(".nav-item").evaluate_all(
+                        "rows=>rows.every(e=>e.querySelectorAll(':scope > .kn-core-nav-icon,:scope > [data-icon],:scope > .nav-icon').length===1)"
+                    )
                     check_quick_search(page, theme, width)
                 if (width, view) in (
                     (1440, "overview"),
@@ -138,6 +141,16 @@ def check(browser, base):
     page.locator("#confirm-password").fill(PASSWORD)
     page.locator(".auth-submit").click()
     page.wait_for_url("**/passwords")
+    page.locator("#lock-button").wait_for(state="hidden")
+    assert (
+        page.evaluate("""()=>{
+      document.querySelector('[data-kn-account-name]').textContent='Synced profile name';
+      document.querySelector('[data-core-account-trigger]').click();
+      return document.querySelector('.kn-core-account-identity strong').textContent;
+    }""")
+        == "Synced profile name"
+    )
+    page.keyboard.press("Escape")
     page.locator('nav a[data-view="authenticators"]').click()
     page.locator("#add-button").click()
     page.locator("#item-name").fill("KagNode QA account")
@@ -370,7 +383,8 @@ def check(browser, base):
     page.get_by_text(
         "Master password updated. Other sessions are now locked.", exact=True
     ).wait_for()
-    page.locator("#lock-button").click()
+    page.locator("[data-core-account-trigger]").click()
+    page.locator("[data-core-account-menu] button").last.click()
     page.wait_for_url("**/unlock?next=%2Fsettings")
     assert page.locator("#items .item-card").count() == 0
     assert page.locator("#item-backup-codes").input_value() == ""
@@ -502,7 +516,8 @@ def check(browser, base):
         "Master password updated. Other sessions are now locked.", exact=True
     ).wait_for()
     assert page.request.get(base + "/api/items").status == 200
-    page.locator("#lock-button").click()
+    page.locator("[data-core-account-trigger]").click()
+    page.locator("[data-core-account-menu] button").last.click()
     page.locator("#auth-screen").wait_for(state="visible")
     assert page.locator("#items .item-card").count() == 0
     for theme in ("dark", "light"):
