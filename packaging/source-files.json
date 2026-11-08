@@ -1,4 +1,5 @@
 [
+  ".github/workflows/account-link.yml",
   ".github/workflows/checks.yml",
   ".github/workflows/packaging.yml",
   ".gitignore",
@@ -20,7 +21,7 @@
   "authentactor/static/app.js",
   "authentactor/static/built/app.b2a9f2f3a8a716f9.js",
   "authentactor/static/built/controls.a707e8ae706cf1fa.js",
-  "authentactor/static/built/kagnode-account.06cb1b5a57d458bd.js",
+  "authentactor/static/built/kagnode-account.1cce044977a77792.js",
   "authentactor/static/built/kagnode-account.fad6fdc8ba2d0527.css",
   "authentactor/static/built/kagnode-scroll.a707e8ae706cf1fa.css",
   "authentactor/static/built/kagnode-scroll.a707e8ae706cf1fa.js",
@@ -68,6 +69,7 @@
   "scripts/release.py",
   "scripts/repository_check.py",
   "scripts/verify_packages.py",
+  "tests/browser_account_link.py",
   "tests/browser_smoke.py",
   "tests/test_account_sync.py",
   "tests/test_accounts.py",
