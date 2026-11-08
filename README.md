@@ -10,7 +10,7 @@ Independent email-based accounts with encrypted authenticator vaults and backup 
 
 ## Release status
 
-Product source: **0.6.0-beta.1**. Packaging preview: **0.6.0-beta.1.packaging.2**.
+Product source: **0.6.0-beta.1**. Packaging preview: **0.6.0-beta.1.packaging.6**.
 
 Packaging prereleases do not change the latest stable release or establish new hardware or service compatibility. See [verification](docs/VERIFICATION.md) and [changelog](CHANGELOG.md).
 
