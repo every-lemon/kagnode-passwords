@@ -416,9 +416,10 @@ def check(browser, base):
     page.wait_for_function("()=>window.__heldResponses.length === 1")
     rect = page.locator("#loading").bounding_box()
     assert rect == {"x": 0, "y": 0, "width": 1440, "height": 1000}, rect
-    logo = page.locator(".loading-logo").bounding_box()
+    logo = page.locator("#loading .kn-core-spinner-mark").bounding_box()
     assert abs(logo["x"] + logo["width"] / 2 - 720) < 1
-    assert page.locator(".loading-strip").bounding_box()["y"] == 0
+    assert page.locator("#loading > .kn-core-spinner").count() == 1
+    assert not page.locator(".loading-strip").is_visible()
     page.screenshot(path=str(ARTIFACTS / "centered-loader.png"))
     page.evaluate("window.__heldResponses.splice(0).forEach(release => release())")
     page.locator(".item-title").filter(has_text="KagNode QA account").wait_for()
@@ -466,7 +467,7 @@ def check(browser, base):
     )
     page.reload()
     page.locator("#loading-retry").wait_for(state="visible")
-    assert page.locator(".loading-logo").is_visible()
+    assert page.locator("#loading .kn-core-spinner-mark").is_visible()
     assert not page.locator(".loading-strip").is_visible()
     page.unroute("**/api/status")
     page.locator("#loading-retry").click()
