@@ -4,6 +4,6 @@
   "version_pattern": "version=([^\\s]+)",
   "kind": "application",
   "license": "AGPL-3.0-only",
-  "revision": 4,
+  "revision": 5,
   "source_package": "kagnode-authenticator-source"
 }
