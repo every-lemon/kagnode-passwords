@@ -1,8 +1,8 @@
 {
   "app.js": {
-    "file": "app.739003e6be4db05a.js",
-    "sha256": "739003e6be4db05a9a65a3692e6ac67ca1846c9cfe29afc7d28544fa505f632a",
-    "bytes": 54999
+    "file": "app.30261956677cd667.js",
+    "sha256": "30261956677cd66741d8c5f244f6d6f78e3a766bcf8ecae9eae39fde094516cf",
+    "bytes": 55162
   },
   "controls.js": {
     "file": "controls.a707e8ae706cf1fa.js",
@@ -15,9 +15,9 @@
     "bytes": 2188
   },
   "kagnode-account.js": {
-    "file": "kagnode-account.73da019bbfa1f4a3.js",
-    "sha256": "73da019bbfa1f4a3760758997afd93e3dea7f9eb6492f94afb44ef181ab5eed4",
-    "bytes": 10860
+    "file": "kagnode-account.dbfad7590a6dfaca.js",
+    "sha256": "dbfad7590a6dfaca8a52426c5880ce79437937e61827728b0eac0a0073ff892c",
+    "bytes": 10907
   },
   "kagnode-scroll.css": {
     "file": "kagnode-scroll.a707e8ae706cf1fa.css",

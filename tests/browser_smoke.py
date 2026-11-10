@@ -78,6 +78,13 @@ def check(browser, base):
                 f"localStorage.setItem('kagnode-theme', '{'light' if theme == 'dark' else 'dark'}')"
             )
             page = context.new_page()
+            demo_profile_requests = []
+            page.on(
+                "request",
+                lambda request: demo_profile_requests.append(request.url)
+                if "/api/kagnode-account" in request.url
+                else None,
+            )
             page.on("pageerror", lambda error: errors.append(str(error)))
             for view in VIEWS:
                 page.goto(f"{base}/{view}?demo=1")
@@ -125,6 +132,7 @@ def check(browser, base):
                     page.locator("#mobile-menu").get_attribute("aria-expanded")
                     == "false"
                 )
+            assert not demo_profile_requests, demo_profile_requests
             context.close()
 
     context = browser.new_context(

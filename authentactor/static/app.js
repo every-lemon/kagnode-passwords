@@ -194,6 +194,7 @@ async function api(path, method = "GET", data) {
       response.status === 401 &&
       !["/unlock", "/setup"].includes(path) &&
       state.unlocked &&
+      !state.demo &&
       requestCsrf === state.csrf &&
       !state.authTransition
     ) {
@@ -242,10 +243,16 @@ function clearSensitive() {
   $("item-password").type = "password";
 }
 
-window.KagNodeAccountRequest = (action = "state", data = {}) =>
-  action === "state"
+window.KagNodeAccountRequest = async (action = "state", data = {}) => {
+  if (state.demo) {
+    if (action !== "state")
+      throw new Error("Sign in to connect a KagNode account.");
+    return { enabled: false, connected: false, admin: false, demo: true };
+  }
+  return action === "state"
     ? api("/kagnode-account")
     : api("/kagnode-account", "POST", { action, ...data });
+};
 let providerAttempt = "";
 window.KagNodeLoginHost = {
   state: () => ({

@@ -410,7 +410,12 @@
       const actions = el("div", "", "kn-account-actions");
       if (!current.enabled)
         actions.append(
-          el("p", "KagNode Account sync is disabled for this installation."),
+          el(
+            "p",
+            current.demo
+              ? "Sign in to connect a KagNode account."
+              : "KagNode Account sync is disabled for this installation.",
+          ),
         );
       else if (current.connected) {
         actions.append(
