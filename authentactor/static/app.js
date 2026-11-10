@@ -298,6 +298,13 @@ function showAuth(mode) {
   const signup = state.authMode === "setup";
   state.unlocked = false;
   state.demo = false;
+  if (!providerAttempt) {
+    $("auth-email").readOnly = false;
+    $("provider-vault-note").hidden = true;
+    $("provider-local-login").hidden = true;
+    $("auth-switch").hidden = false;
+    window.KagNodeLogin?.reset($("provider-login"));
+  }
   $("loading").hidden = true;
   $("dashboard").hidden = true;
   $("auth-screen").hidden = false;
@@ -1399,6 +1406,17 @@ function bind() {
   $("auth-switch").addEventListener("click", () =>
     showAuth(state.authMode === "setup" ? "unlock" : "setup"),
   );
+  $("provider-local-login").addEventListener("click", async (event) => {
+    event.preventDefault();
+    const attempt = providerAttempt;
+    providerAttempt = "";
+    if (attempt)
+      await api("/kagnode-login", "POST", {
+        action: "cancel",
+        attempt_id: attempt,
+      }).catch(() => {});
+    showAuth("unlock");
+  });
   $("demo-button").addEventListener("click", startDemo);
   $("demo-exit").addEventListener("click", () => showAuth());
   $("lock-button").addEventListener("click", async () => {
@@ -1406,6 +1424,7 @@ function bind() {
       showAuth();
       return;
     }
+    state.authTransition = true;
     try {
       loading("Signing out…");
       await Promise.all([
@@ -1417,6 +1436,7 @@ function bind() {
     } catch (e) {
       toast(e.message, true);
     } finally {
+      state.authTransition = false;
       $("loading").hidden = true;
     }
   });
@@ -1694,10 +1714,12 @@ async function heartbeat() {
     !state.demo &&
     Date.now() - state.lastInput >= state.settings.auto_lock * 60000
   ) {
+    state.authTransition = true;
     try {
       await api("/lock", "POST");
     } catch {}
     showAuth();
+    state.authTransition = false;
     toast("Vault automatically locked after inactivity.");
     return;
   }
