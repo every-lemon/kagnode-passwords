@@ -9,7 +9,8 @@ jobs:
   browser:
     name: Account link browser (${{ matrix.engine }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # WebKit system dependencies can exceed ten minutes on a cold runner.
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -21,8 +22,12 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: "3.12"
-      - run: pip install playwright==1.58.0
+      - run: pip install -r requirements.txt playwright==1.58.0
       - run: playwright install --with-deps ${{ matrix.engine }}
       - run: python tests/browser_account_link.py
+        env:
+          KAGNODE_BROWSER_ENGINE: ${{ matrix.engine }}
+      - name: Local and KagNode sign-in journeys
+        run: python tests/browser_provider.py
         env:
           KAGNODE_BROWSER_ENGINE: ${{ matrix.engine }}
