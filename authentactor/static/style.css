@@ -3076,3 +3076,24 @@ dialog[open] {
     width: 100%;
   }
 }
+
+/* The shared login card replaces the retired two-column welcome layout. */
+html[data-kn-core] #auth-screen[data-core-login] {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  max-width: none;
+}
+html[data-kn-core] #auth-screen .auth-main {
+  min-height: 0;
+}
+html[data-kn-core] #auth-screen .auth-content {
+  max-width: none;
+  margin: 0;
+  padding: 28px 0 20px;
+}
+html[data-kn-core] #auth-screen .auth-content form {
+  margin-top: 0;
+}
+html[data-kn-core] #auth-screen .brand-copy strong {
+  white-space: nowrap;
+}

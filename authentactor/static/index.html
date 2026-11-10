@@ -38,8 +38,14 @@
       </button>
     </div>
     <a class="skip-link" href="#main-content">Skip to content</a>
-    <section id="auth-screen" class="auth-screen" hidden>
-      <div class="auth-main">
+    <section
+      id="auth-screen"
+      class="auth-screen"
+      data-core-login
+      data-core-login-product="KagNode Passwords"
+      hidden
+    >
+      <div class="auth-main kn-core-login-card">
         <div class="auth-brand-row">
           <a class="brand auth-brand" href="/"
             ><img class="brand-mark" src="/static/logo.svg" alt="" /><span
@@ -56,55 +62,67 @@
           </button>
         </div>
         <div class="auth-content">
-          <div class="auth-lock" data-icon="lock"></div>
-          <span class="eyebrow">PERSONAL VAULT</span>
-          <h1 id="auth-title">Your sign-ins,<br />in one place.</h1>
-          <p id="auth-description">
-            Keep your passwords, verification codes, and backup codes together
-            in your own encrypted vault.
-          </p>
-          <form id="auth-form">
-            <label for="auth-email">Email address</label
-            ><input
-              id="auth-email"
-              type="email"
-              maxlength="254"
-              autocomplete="username"
-              placeholder="you@example.com"
-              required
-            /><label for="master-password">Password</label>
-            <div class="input-with-action">
-              <input
-                id="master-password"
-                type="password"
-                minlength="12"
-                maxlength="1024"
-                autocomplete="new-password"
-                placeholder="At least 12 characters"
-                required
-              /><button
-                type="button"
-                class="icon-button"
-                data-reveal="master-password"
-                aria-label="Show master password"
-                data-icon="eye"
-              ></button>
-            </div>
-            <div id="confirm-wrap">
-              <label for="confirm-password">Confirm master password</label
+          <div class="kn-core-login-heading">
+            <h1 id="auth-title">Your sign-ins,<br />in one place.</h1>
+            <p id="auth-description">
+              Keep your passwords, verification codes, and backup codes together
+              in your own encrypted vault.
+            </p>
+          </div>
+          <div class="kn-core-login-content">
+            <form id="auth-form">
+              <label for="auth-email">Email address</label
               ><input
-                id="confirm-password"
-                type="password"
-                autocomplete="new-password"
-                placeholder="Enter it one more time"
-              />
-            </div>
-            <div id="auth-error" class="form-error" role="alert" hidden></div>
-            <button class="button primary auth-submit" type="submit">
-              <span id="auth-button">Create my vault</span
-              ><span data-icon="arrow-right"></span>
+                id="auth-email"
+                type="email"
+                maxlength="254"
+                autocomplete="username"
+                placeholder="you@example.com"
+                required
+              /><label for="master-password">Password</label>
+              <div class="input-with-action">
+                <input
+                  id="master-password"
+                  type="password"
+                  minlength="12"
+                  maxlength="1024"
+                  autocomplete="new-password"
+                  placeholder="At least 12 characters"
+                  required
+                /><button
+                  type="button"
+                  class="icon-button"
+                  data-reveal="master-password"
+                  aria-label="Show master password"
+                  data-icon="eye"
+                ></button>
+              </div>
+              <div id="confirm-wrap">
+                <label for="confirm-password">Confirm master password</label
+                ><input
+                  id="confirm-password"
+                  type="password"
+                  autocomplete="new-password"
+                  placeholder="Enter it one more time"
+                />
+              </div>
+              <div id="auth-error" class="form-error" role="alert" hidden></div>
+              <button class="button primary auth-submit" type="submit">
+                <span id="auth-button">Create my vault</span
+                ><span data-icon="arrow-right"></span>
+              </button>
+            </form>
+            <p id="provider-vault-note" role="status" hidden></p>
+            <a id="provider-local-login" href="/unlock" hidden
+              >Use local sign-in</a
+            >
+          </div>
+          <div class="kn-core-login-provider" id="provider-login" hidden>
+            <button type="button" data-core-login-provider disabled>
+              Login with KagNode
             </button>
-          </form>
+            <div data-core-login-status role="status"></div>
+          </div>
           <p id="master-note" class="small-note">
             Your master password encrypts your vault. Keep it somewhere safe —
             it cannot be recovered.
@@ -127,51 +145,10 @@
         </div>
         <footer class="auth-footer">
           <span data-icon="server"></span>Stored on your server<span
-            >Preview 0.6.0-beta.1</span
+            >Preview 0.6.0-beta.2</span
           >
         </footer>
       </div>
-      <aside class="auth-art" aria-label="About KagNode Passwords">
-        <span class="eyebrow">KAGNODE PASSWORDS</span>
-        <h2>Passwords and codes.</h2>
-        <p>
-          Store passwords, authenticator keys, and backup codes. Each account
-          has its own encrypted vault and password.
-        </p>
-        <div class="auth-example">
-          <div class="example-heading">
-            <span class="example-icon" data-icon="fingerprint"></span>
-            <div>
-              <strong>Work account</strong><small>Sample authenticator</small>
-            </div>
-            <span class="pill blue">Demo</span>
-          </div>
-          <div class="example-code">
-            482 <span>091</span><span class="example-countdown">24s</span>
-          </div>
-          <div class="example-bottom">
-            <span data-icon="lock"></span>Time-based verification code
-          </div>
-        </div>
-        <div class="auth-facts">
-          <div>
-            <span data-icon="server"></span><strong>Self-hosted</strong>
-            <p>Vaults stay on this server.</p>
-          </div>
-          <div>
-            <span data-icon="shield-check"></span
-            ><strong>Encrypted storage</strong>
-            <p>Each vault uses its own encryption key.</p>
-          </div>
-        </div>
-        <a
-          class="website-link"
-          href="https://nebulacoder.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          >KagNode Website <span data-icon="arrow-up-right"></span
-        ></a>
-      </aside>
     </section>
     <div id="dashboard" hidden>
       <header class="topbar">
@@ -297,7 +274,7 @@
           <span data-icon="lock"></span>
           <div>
             <strong>Encrypted vault</strong
-            ><small>KagNode. Passwords · 0.6.0-beta.1</small>
+            ><small>KagNode. Passwords · 0.6.0-beta.2</small>
           </div>
         </div>
       </aside>

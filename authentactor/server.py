@@ -36,7 +36,7 @@ from flask import (
 from werkzeug.exceptions import HTTPException
 from .storage import email_address, initialize_database
 
-VERSION = "0.6.0-beta.1"
+VERSION = "0.6.0-beta.2"
 KDF = {"name": "scrypt", "n": 32768, "r": 8, "p": 1}
 COOKIE = "authentactor_session"
 PAGE_PATHS = (
@@ -690,27 +690,87 @@ def create_app(data_dir, preview=False, legacy_email=None):
             methods=["GET"],
         )
 
+    def login_browser():
+        return request.cookies.get(
+            "__Host-kagnode_login" if request.is_secure else "kagnode_login", ""
+        )
+
+    def login_csrf(browser):
+        try:
+            return account_signins.csrf(browser)
+        except AccountLinkError:
+            raise VaultError("Reload the sign-in page and try again.", 403)
+
+    def provider_identity(body):
+        attempt = str(body.get("provider_attempt", ""))
+        if not attempt:
+            return None
+        if not login_browser() or not secrets.compare_digest(
+            request.headers.get("X-CSRF-Token", ""), login_csrf(login_browser())
+        ):
+            raise VaultError("Reload the sign-in page and try again.", 403)
+        try:
+            return account_signins.verified(login_browser(), attempt)
+        except AccountLinkError as error:
+            raise VaultError(str(error), error.status)
+
+    def finish_provider(body, identifier):
+        if body.get("provider_attempt"):
+            try:
+                account_signins.finish(
+                    login_browser(), str(body["provider_attempt"]), identifier
+                )
+            except AccountLinkError as error:
+                raise VaultError(str(error), error.status)
+
     @app.get("/api/status")
     def status():
         state = session_state()
-        return jsonify(
+        browser = login_browser()
+        if not re.fullmatch(r"[A-Za-z0-9_-]{43}", browser):
+            browser = secrets.token_urlsafe(32)
+        response = jsonify(
             initialized=any_accounts(),
             unlocked=bool(state),
-            csrf=state["csrf"] if state else None,
+            csrf=state["csrf"] if state else login_csrf(browser),
             settings={"auto_lock": state["timeout"]} if state else None,
             account={"email": state["email"]} if state else None,
             registration=True,
+            provider_enabled=account_signins.enabled(),
             preview=preview,
             version=VERSION,
         )
+        if not state:
+            response.set_cookie(
+                "__Host-kagnode_login" if request.is_secure else "kagnode_login",
+                browser,
+                max_age=600,
+                httponly=True,
+                secure=request.is_secure,
+                samesite="Strict",
+                path="/",
+            )
+        return response
 
     @app.post("/api/setup")
     def setup():
         body = json_body()
+        provider = provider_identity(body)
+        if provider and (
+            provider["local_id"] or not provider["profile"].get("email_verified")
+        ):
+            raise VaultError(
+                "Sign in to your existing vault, or verify your KagNode email before creating one.",
+                409,
+            )
         try:
             email = email_address(body.get("email"))
         except ValueError as error:
             raise VaultError(str(error))
+        if provider and email != provider["profile"]["email"].lower():
+            raise VaultError(
+                "Use the verified email from your KagNode confirmation.", 409
+            )
         password = body.get("password", "")
         if not isinstance(password, str) or not 12 <= len(password) <= 1024:
             raise VaultError("Use a password between 12 and 1024 characters.")
@@ -743,6 +803,7 @@ def create_app(data_dir, preview=False, legacy_email=None):
                         "INSERT INTO accounts(id,email,salt,payload,created) VALUES(?,?,?,?,?)",
                         (identifier, email, salt, payload, int(now)),
                     )
+                    finish_provider(body, identifier)
             except sqlite3.IntegrityError:
                 raise VaultError(
                     "Unable to create this account. Try signing in, or use another email.",
@@ -753,6 +814,7 @@ def create_app(data_dir, preview=False, legacy_email=None):
     @app.post("/api/unlock")
     def unlock():
         body = json_body()
+        provider = provider_identity(body)
         password = body.get("password", "")
         try:
             email = email_address(body.get("email"))
@@ -782,13 +844,17 @@ def create_app(data_dir, preview=False, legacy_email=None):
             # Unknown emails still pay the same password-derivation cost.
             key = derive_key(password, account[1] if account else b"unknown-account!")
             try:
-                if not account:
+                if not account or (
+                    provider
+                    and (not provider["local_id"] or provider["local_id"] != account[0])
+                ):
                     raise VaultError("Incorrect email or password.", 401)
                 vault = read_vault(key, account[0])
             except VaultError:
                 for bucket in ("global", "ip:" + request.remote_addr, email_bucket):
                     failures[bucket].append(now)
                 raise
+            finish_provider(body, account[0])
             failures.pop(email_bucket, None)
             return new_session(key, vault, account[0])
 
@@ -1214,6 +1280,77 @@ def create_app(data_dir, preview=False, legacy_email=None):
 
     profile_links = ProfileLinks(directory / "account-sync", "kagnode-authenticator")
     app.extensions["kagnode_account"] = profile_links
+    from .account_login import AccountSignIns
+
+    account_signins = AccountSignIns(profile_links)
+    app.extensions["kagnode_signins"] = account_signins
+
+    @app.post("/api/kagnode-login")
+    def kagnode_login():
+        if session_state():
+            raise VaultError("Your vault is already unlocked.", 409)
+        browser = login_browser()
+        if not browser or not secrets.compare_digest(
+            request.headers.get("X-CSRF-Token", ""), login_csrf(browser)
+        ):
+            raise VaultError("Reload the sign-in page and try again.", 403)
+        body = json_body()
+        action, attempt = body.get("action"), str(body.get("attempt_id", ""))
+        try:
+            if action == "start":
+                with mutex:
+                    now = time.time()
+                    bucket = failures["provider-ip:" + request.remote_addr]
+                    while bucket and bucket[0] < now - 900:
+                        bucket.popleft()
+                    if len(bucket) >= 12:
+                        raise VaultError(
+                            "Too many sign-in requests. Try again later.", 429
+                        )
+                    bucket.append(now)
+                result = account_signins.start(browser, request.host_url.rstrip("/"))
+            elif action == "cancel":
+                result = account_signins.cancel(browser, attempt)
+            elif action == "status":
+                result = account_signins.status(browser, attempt)
+                if result.get("authorized"):
+                    identity = account_signins.verified(browser, attempt)
+                    if identity["local_id"]:
+                        with connect() as connection:
+                            local = connection.execute(
+                                "SELECT email FROM accounts WHERE id=?",
+                                (identity["local_id"],),
+                            ).fetchone()
+                        if not local:
+                            account_signins.cancel(browser, attempt)
+                            raise VaultError(
+                                "The linked vault is unavailable. Sign in locally for help.",
+                                403,
+                            )
+                        result.update(continuation="unlock", email=local[0])
+                    else:
+                        email = identity["profile"].get("email", "")
+                        if not email:
+                            raise VaultError(
+                                "Verify your KagNode email before creating a vault, or sign in locally to link an existing vault.",
+                                409,
+                            )
+                        with connect() as connection:
+                            collision = connection.execute(
+                                "SELECT id FROM accounts WHERE email=?",
+                                (email.lower(),),
+                            ).fetchone()
+                        if collision:
+                            raise VaultError(
+                                "This email already has a local vault. Sign in locally and explicitly link it in Settings.",
+                                409,
+                            )
+                        result.update(continuation="setup", email=email)
+            else:
+                raise VaultError("Invalid sign-in action.")
+            return jsonify(result)
+        except AccountLinkError as error:
+            raise VaultError(str(error), error.status)
 
     @app.route("/api/kagnode-account", methods=["GET", "POST"])
     @authenticated

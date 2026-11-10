@@ -177,7 +177,7 @@ async function api(path, method = "GET", data) {
   };
   if (method !== "GET") {
     options.headers["Content-Type"] = "application/json";
-    options.headers["X-CSRF-Token"] = state.csrf || "";
+    options.headers["X-CSRF-Token"] = state.csrf || state.loginCsrf || "";
     options.body = JSON.stringify(data || {});
   }
   let response;
@@ -242,6 +242,40 @@ function clearSensitive() {
   $("item-password").type = "password";
 }
 
+window.KagNodeAccountRequest = (action = "state", data = {}) =>
+  action === "state"
+    ? api("/kagnode-account")
+    : api("/kagnode-account", "POST", { action, ...data });
+let providerAttempt = "";
+window.KagNodeLoginHost = {
+  state: () => ({
+    enabled: state.providerEnabled === true && !state.unlocked && !state.demo,
+  }),
+  request: async (action, data) => {
+    if (action === "start") {
+      const status = await api("/status");
+      state.loginCsrf = status.csrf;
+      state.providerEnabled = status.provider_enabled === true;
+    }
+    return api("/kagnode-login", "POST", { action, ...data });
+  },
+  complete: (result) => {
+    if (!["unlock", "setup"].includes(result.continuation))
+      throw new Error("Invalid vault continuation.");
+    providerAttempt = result.attempt_id;
+    showAuth(result.continuation);
+    $("auth-email").value = result.email;
+    $("auth-email").readOnly = true;
+    $("provider-vault-note").textContent =
+      result.continuation === "unlock"
+        ? "KagNode identity confirmed. Your master password is still required to decrypt this vault."
+        : "KagNode identity confirmed. Choose a master password to create your encrypted vault. KagNode cannot recover or decrypt it.";
+    $("provider-vault-note").hidden = false;
+    $("provider-local-login").hidden = false;
+    $("auth-switch").hidden = true;
+    $("master-password").focus();
+  },
+};
 function showAuth(mode) {
   window.KagNodeCore?.setSession({ authenticated: false });
   const email = state.account?.email || $("auth-email").value;
@@ -283,6 +317,8 @@ function showAuth(mode) {
     ? "This password encrypts your vault. Email cannot be used to reset it."
     : "Use the existing vault password. Your email identifies the account.";
   $("auth-preview").hidden = !state.preview;
+  $("provider-login").hidden = !state.providerEnabled;
+  window.KagNodeLogin?.refresh();
   showError("auth-error", "");
   document.title = `${signup ? "Create account" : "Sign in"} · KagNode. Passwords`;
   history.replaceState(
@@ -1329,12 +1365,18 @@ function bind() {
         {
           email: $("auth-email").value,
           password,
+          ...(providerAttempt ? { provider_attempt: providerAttempt } : {}),
         },
       );
       state.csrf = data.csrf;
       state.settings = data.settings;
       state.account = data.account;
       state.initialized = true;
+      providerAttempt = "";
+      $("auth-email").readOnly = false;
+      $("provider-vault-note").hidden = true;
+      $("provider-local-login").hidden = true;
+      $("auth-switch").hidden = false;
       state.demo = false;
       $("master-password").value = "";
       $("confirm-password").value = "";
@@ -1680,6 +1722,8 @@ async function boot() {
     const data = await api("/status");
     state.initialized = data.initialized;
     state.preview = data.preview;
+    state.providerEnabled = data.provider_enabled === true;
+    state.loginCsrf = data.unlocked ? null : data.csrf;
     state.account = data.account;
     state.csrf = data.csrf;
     state.settings = data.settings || {

@@ -1,3 +1,10 @@
+# 0.6.0-beta.2
+
+- Use the locally served shared Core login frame with explicit KagNode confirmation and bounded, browser-bound sign-in attempts.
+- Refresh newly consented verified contact email alongside name and photo; preserve local policy, roles and offline sign-in.
+- Passwords offers vault initialization for a new verified KagNode subject because local signup is enabled. Choose a new master password explicitly. Existing linked vaults still require their master password to decrypt; KagNode identity does not contain a vault key or provide password recovery. An existing local email collision requires signing in locally and explicitly linking that account.
+- Web/source preview only; no native service or hardware qualification is implied.
+
 # 0.6.0-beta.1 — KagNode Passwords preview
 
 ## Update recovery status preview

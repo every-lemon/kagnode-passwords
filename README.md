@@ -10,11 +10,13 @@ Independent email-based accounts with encrypted authenticator vaults and backup 
 
 ## Release status
 
-Product source: **0.6.0-beta.1**. Packaging preview: **0.6.0-beta.1.packaging.8**.
+Product source: **0.6.0-beta.2**. Packaging preview: **0.6.0-beta.2.packaging.9**.
 
 Packaging prereleases do not change the latest stable release or establish new hardware or service compatibility. See [verification](docs/VERIFICATION.md) and [changelog](CHANGELOG.md).
 
 ## Features
+
+- Shared local sign-in and explicit Login with KagNode; local access and security requirements stay available. See [account sign-in](docs/ACCOUNT-SYNC.md).
 
 - Secure notes and folder labels alongside saved logins, TOTP and recovery codes.
 - Recoverable Trash with explicit restore and permanent removal.
