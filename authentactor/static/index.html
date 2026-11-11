@@ -89,17 +89,17 @@
 </form>
 <p id="provider-vault-note" role="status" hidden></p>
 <a id="provider-local-login" href="/unlock" hidden>Use local sign-in</a>
-<p id="master-note" class="kn-core-login-links">
+<p id="master-note">
   Your master password encrypts your vault. Keep it somewhere safe — it cannot
   be recovered.
 </p>
-<button id="auth-switch" type="button" class="kn-core-login-links">
-  Create an account
-</button>
-<button id="demo-button" class="kn-core-login-links">
-  <span data-icon="layout"></span>Explore the demo vault
-</button>
-<p id="auth-preview" class="kn-core-login-links" hidden>
+<div class="kn-core-login-links">
+  <button id="auth-switch" type="button">Create an account</button>
+  <button id="demo-button" type="button">
+    <span data-icon="layout"></span>Explore the demo vault
+  </button>
+</div>
+<p id="auth-preview" hidden>
   <span data-icon="info"></span>HTTP test preview · use test credentials only.
 </p>
 </div><div class="kn-core-login-provider" id="provider-login" hidden><button type="button" data-core-login-provider disabled>
