@@ -81,9 +81,11 @@ def check(browser, base):
             demo_profile_requests = []
             page.on(
                 "request",
-                lambda request: demo_profile_requests.append(request.url)
-                if "/api/kagnode-account" in request.url
-                else None,
+                lambda request: (
+                    demo_profile_requests.append(request.url)
+                    if "/api/kagnode-account" in request.url
+                    else None
+                ),
             )
             page.on("pageerror", lambda error: errors.append(str(error)))
             for view in VIEWS:

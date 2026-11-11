@@ -1,0 +1,10 @@
+{
+  "target": "authentactor/static/index.html",
+  "product": "KagNode. Passwords",
+  "heading": "Sign in",
+  "description": "Use your account to continue to KagNode Passwords.",
+  "id": "auth-screen",
+  "hidden": true,
+  "heading_id": "auth-title",
+  "description_id": "auth-description"
+}

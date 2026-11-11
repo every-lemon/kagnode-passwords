@@ -9,7 +9,7 @@
 | Documentation | README.md and docs/ | Shared README order; detailed setup in OPERATIONS.md |
 | CI | .github/workflows/ | Separate application, format/package and release gates |
 
-`packaging/release.json` reads the product version from `packaging/build-deb.sh`. Its revision adds a packaging prerelease suffix without relabeling the product as stable. `packaging/source-files.json` is the reviewed publication allowlist; update it after adding/removing committed files. Source/data package payloads preserve this layout.
+`packaging/release.json` reads the product version from `packaging/build-deb.sh`. Its stable channel retains the exact product version; historical preview builds retain the packaging-revision suffix. `packaging/source-files.json` is the reviewed publication allowlist; update it after adding/removing committed files. Source/data package payloads preserve this layout.
 
 Do not publish .git, runtime data, private directories, credentials, caches or local build scratch. Existing generated installers, minified web assets, checksums and compatibility artwork paths are intentionally retained.
 
@@ -19,3 +19,5 @@ Use `python3 scripts/format_web.py --check` for first-party CSS/JavaScript and p
 routes and per-account encryption stay in `server.py`; `static/app.js` contains
 the Notes, Trash and Apps & extensions views. `ecosystem_updates.py` is only a
 local Unix-socket client, not a privileged updater.
+
+The shared login frame is generated from the pinned Core template. Edit `web/login-content.html`, `web/login-provider.html` and `web/login.json` for local form behavior; run `scripts/build-login.py` or the normal web build. The frame and field styling remain owned by Core. `scripts/repository_check.py` rejects a stale generated login frame.

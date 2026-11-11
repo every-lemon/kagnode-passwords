@@ -36,7 +36,7 @@ from flask import (
 from werkzeug.exceptions import HTTPException
 from .storage import email_address, initialize_database
 
-VERSION = "0.6.0-beta.2"
+VERSION = "5.0.0"
 KDF = {"name": "scrypt", "n": 32768, "r": 8, "p": 1}
 COOKIE = "authentactor_session"
 PAGE_PATHS = (
