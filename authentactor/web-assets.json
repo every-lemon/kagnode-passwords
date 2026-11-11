@@ -1,8 +1,8 @@
 {
   "app.js": {
-    "file": "app.b4825e3a7a65b636.js",
-    "sha256": "b4825e3a7a65b6360c22880d319667f17bd3835d0fc0f638c6e4edccdf5a60a4",
-    "bytes": 55678
+    "file": "app.186736c9fa17410d.js",
+    "sha256": "186736c9fa17410dd109f1587c028751e592dfe1943e515dfb834c0b877b9265",
+    "bytes": 52443
   },
   "controls.js": {
     "file": "controls.a707e8ae706cf1fa.js",
@@ -35,9 +35,9 @@
     "bytes": 5296
   },
   "style.css": {
-    "file": "style.aba21e001fbc25a9.css",
-    "sha256": "aba21e001fbc25a9a79098f217249becff05c3ac76965e934a0f153d6d027838",
-    "bytes": 43244
+    "file": "style.ee67e7e7873976cd.css",
+    "sha256": "ee67e7e7873976cd952328e273d2e5415df30e70e4eb09dd0d3178882fddd25a",
+    "bytes": 42699
   },
   "theme.js": {
     "file": "theme.a707e8ae706cf1fa.js",

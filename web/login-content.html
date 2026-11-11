@@ -1,0 +1,63 @@
+<form id="auth-form">
+  <div class="kn-core-login-field">
+    <label for="auth-email">Email address</label
+    ><input
+      id="auth-email"
+      type="email"
+      maxlength="254"
+      autocomplete="username"
+      placeholder="you@example.com"
+      required
+    />
+  </div>
+  <div class="kn-core-login-field">
+    <label for="master-password">Master password</label>
+    <div class="kn-core-login-secret">
+      <input
+        id="master-password"
+        type="password"
+        minlength="12"
+        maxlength="1024"
+        autocomplete="new-password"
+        placeholder="At least 12 characters"
+        required
+      /><button
+        type="button"
+        class="icon-button"
+        data-reveal="master-password"
+        aria-label="Show master password"
+        data-icon="eye"
+      ></button>
+    </div>
+  </div>
+  <div id="confirm-wrap">
+    <div class="kn-core-login-field">
+      <label for="confirm-password">Confirm master password</label
+      ><input
+        id="confirm-password"
+        type="password"
+        autocomplete="new-password"
+        placeholder="Enter it one more time"
+      />
+    </div>
+  </div>
+  <div id="auth-error" class="form-error" role="alert" hidden></div>
+  <button type="submit" class="auth-submit" data-core-login-submit>
+    <span id="auth-button">Sign in</span>
+  </button>
+</form>
+<p id="provider-vault-note" role="status" hidden></p>
+<a id="provider-local-login" href="/unlock" hidden>Use local sign-in</a>
+<p id="master-note" class="kn-core-login-links">
+  Your master password encrypts your vault. Keep it somewhere safe — it cannot
+  be recovered.
+</p>
+<button id="auth-switch" type="button" class="kn-core-login-links">
+  Create an account
+</button>
+<button id="demo-button" class="kn-core-login-links">
+  <span data-icon="layout"></span>Explore the demo vault
+</button>
+<p id="auth-preview" class="kn-core-login-links" hidden>
+  <span data-icon="info"></span>HTTP test preview · use test credentials only.
+</p>

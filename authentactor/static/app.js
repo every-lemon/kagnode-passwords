@@ -1,49 +1,16 @@
 "use strict";
-const paths = {
-  shield:
-    '<path d="M12 3 21 7v5c0 5-6 8-9 10-3-2-9-5-9-10V7Z"/><path d="m8 12 3 3 5-6"/>',
-  lock: '<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/>',
-  key: '<circle cx="8" cy="9" r="5"/><path d="m11.5 12.5 9 9M16 17l3-3M19 20l3-3"/>',
-  layout:
-    '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M9 9h12"/>',
-  fingerprint:
-    '<path d="M5 12a7 7 0 0 1 14 0c0 4-1 7-3 9M3 16c0-2 0-4 .5-6M7 20c2-2 2-5 2-8a3 3 0 0 1 6 0c0 4-1 6-2 8M11 22c2-4 2-8 2-10M4 7a10 10 0 0 1 17 5c0 2 0 4-1 6M5 21c1-2 2-5 2-8"/>',
-  star: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/>',
-  sparkles:
-    '<path d="m12 3 2.6 6.4L21 12l-6.4 2.6L12 21l-2.6-6.4L3 12l6.4-2.6ZM20 2v4M18 4h4M4 19v3M2.5 20.5h3"/>',
-  "shield-check":
-    '<path d="m12 3 9 4v5c0 5-6 8-9 10-3-2-9-5-9-10V7Z"/><path d="m8 12 3 3 5-6"/>',
-  settings:
-    '<path d="m9 3-.6 3-2 .9L3.5 6l-2 3.5L4 11v2l-2.5 1.5 2 3.5 2.9-.9 2 .9.6 3h4l.6-3 2-.9 2.9.9 2-3.5L20 13v-2l2.5-1.5-2-3.5-2.9.9-2-.9L15 3Z"/><circle cx="12" cy="12" r="3"/>',
-  server:
-    '<rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 6.5h.01M7 17.5h.01M11 6.5h6M11 17.5h6"/>',
-  plus: '<path d="M12 5v14M5 12h14"/>',
-  "arrow-right": '<path d="M4 12h16m-6-6 6 6-6 6"/>',
-  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
-  flask:
-    '<path d="M9 3h6M10 3v6L4 19c-.5 1 0 2 1 2h14c1 0 1.5-1 1-2L14 9V3M7 15h10"/>',
-  layers: '<path d="m12 3 10 5-10 5L2 8Zm-10 9 10 5 10-5M2 16l10 5 10-5"/>',
-  search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
-  grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
-  list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
-  copy: '<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
-  eye: '<path d="M2 12c5-9 15-9 20 0-5 9-15 9-20 0Z"/><circle cx="12" cy="12" r="3"/>',
-  "eye-off":
-    '<path d="m3 3 18 18M10.5 5c5-.8 9.5 2.5 11.5 7a20 20 0 0 1-4 4.5M6 6.5A20 20 0 0 0 2 12c5 9 15 9 20 0M10 10a3 3 0 0 0 4 4"/>',
-  globe:
-    '<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/>',
-  lightbulb: '<path d="M9 18v-2a6 6 0 1 1 6 0v2M9 18h6M9 21h6M10 24h4"/>',
-  "check-circle": '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
-  check: '<path d="m4 12 5 5L20 6"/>',
-  refresh:
-    '<path d="M20 7v5h-5M4 17v-5h5M5.5 7a8 8 0 0 1 13 0L20 12M4 12l1.5 5a8 8 0 0 0 13 0"/>',
-  download: '<path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/>',
-  upload: '<path d="M12 16V4m-5 5 5-5 5 5M4 16v5h16v-5"/>',
-  x: '<path d="m6 6 12 12M6 18 18 6"/>',
-  menu: '<path d="M3 6h18M3 12h18M3 18h18"/>',
-  edit: '<path d="m15 5 4 4M3 21l5-1L21 7a2.8 2.8 0 0 0-4-4L4 16ZM3 21l1-5"/>',
-  alert: '<path d="m12 3 10 18H2Z M12 9v5M12 17h.01"/>',
-  trash: '<path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/>',
+const iconAliases = {
+  user: "account",
+  shield: "security",
+  key: "password",
+  globe: "domains",
+  pen: "edit",
+  users: "community",
+  paperclip: "attachment",
+  mail: "envelope",
+  x: "close",
+  "arrow-up-right": "external",
+  lightbulb: "lightbulb",
 };
 const $ = (id) => document.getElementById(id);
 const esc = (value) =>
@@ -58,8 +25,7 @@ const esc = (value) =>
         "'": "&#39;",
       })[c],
   );
-const svg = (name, extra = "") =>
-  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${paths[name] || paths.shield}</svg>`;
+const svg = (name) => window.KagNodeCore.icon(iconAliases[name] || name);
 
 function icons(root = document) {
   root.querySelectorAll("[data-icon]").forEach((e) => {
@@ -138,13 +104,6 @@ let returnView =
   pathView(new URLSearchParams(location.search).get("next") || "") ||
   pathView(location.pathname) ||
   "overview";
-paths.sun =
-  '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>';
-paths.user =
-  '<circle cx="12" cy="8" r="4"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/>';
-paths.home =
-  '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/>';
-paths["arrow-up-right"] = '<path d="M6 18 18 6M6 6h12v12"/>';
 function loading(label) {
   $("loading-label").textContent = label;
   $("loading").hidden = false;
