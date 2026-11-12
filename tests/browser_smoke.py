@@ -147,6 +147,10 @@ def check(browser, base):
     assert "/setup?next=%2Fpasswords" in page.url
     page.screenshot(path=str(ARTIFACTS / "dark-1440-setup.png"), full_page=True)
     page.locator("#auth-email").fill(EMAIL)
+    if not page.locator("#master-password").is_visible():
+        page.locator("#auth-form").get_by_role(
+            "button", name="Continue", exact=True
+        ).click()
     page.locator("#master-password").fill(PASSWORD)
     page.locator("#confirm-password").fill(PASSWORD)
     page.locator(".auth-submit").click()
@@ -400,6 +404,10 @@ def check(browser, base):
     assert page.locator("#item-backup-codes").input_value() == ""
     assert page.locator("#detail-content").inner_text() == ""
     page.locator("#auth-email").fill(EMAIL)
+    if not page.locator("#master-password").is_visible():
+        page.locator("#auth-form").get_by_role(
+            "button", name="Continue", exact=True
+        ).click()
     page.locator("#master-password").fill(changed)
     page.locator(".auth-submit").click()
     page.wait_for_url("**/settings")
@@ -492,6 +500,10 @@ def check(browser, base):
     other.locator("#auth-switch").click()
     other.locator("#auth-email").fill("second@browser.test")
     other_password = "Only another disposable account password!72"
+    if not other.locator("#master-password").is_visible():
+        other.locator("#auth-form").get_by_role(
+            "button", name="Continue", exact=True
+        ).click()
     other.locator("#master-password").fill(other_password)
     other.locator("#confirm-password").fill(other_password)
     other.locator(".auth-submit").click()
@@ -541,6 +553,10 @@ def check(browser, base):
                 full_page=True,
             )
     page.locator("#auth-email").fill("second@browser.test")
+    if not page.locator("#master-password").is_visible():
+        page.locator("#auth-form").get_by_role(
+            "button", name="Continue", exact=True
+        ).click()
     page.locator("#master-password").fill(other_password + "-changed")
     page.locator(".auth-submit").click()
     page.locator(".item-title").filter(has_text="Second account only").wait_for()

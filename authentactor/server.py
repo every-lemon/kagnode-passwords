@@ -36,7 +36,7 @@ from flask import (
 from werkzeug.exceptions import HTTPException
 from .storage import email_address, initialize_database
 
-VERSION = "5.0.0"
+VERSION = "5.0.1"
 KDF = {"name": "scrypt", "n": 32768, "r": 8, "p": 1}
 COOKIE = "authentactor_session"
 PAGE_PATHS = (
@@ -736,6 +736,7 @@ def create_app(data_dir, preview=False, legacy_email=None):
             settings={"auto_lock": state["timeout"]} if state else None,
             account={"email": state["email"]} if state else None,
             registration=True,
+            provider_issuer=profile_links.issuer,
             provider_enabled=account_signins.enabled(),
             preview=preview,
             version=VERSION,
@@ -747,7 +748,7 @@ def create_app(data_dir, preview=False, legacy_email=None):
                 max_age=600,
                 httponly=True,
                 secure=request.is_secure,
-                samesite="Strict",
+                samesite="Lax",
                 path="/",
             )
         return response
@@ -1285,6 +1286,27 @@ def create_app(data_dir, preview=False, legacy_email=None):
     account_signins = AccountSignIns(profile_links)
     app.extensions["kagnode_signins"] = account_signins
 
+    @app.get("/auth/kagnode/callback")
+    def kagnode_callback():
+        query = {"kagnode_error": "invalid"}
+        try:
+            if any(len(request.args.getlist(key)) != 1 for key in request.args):
+                raise AccountLinkError("Invalid callback.", 403)
+            attempt = account_signins.callback(
+                login_browser(),
+                request.args.get("state", ""),
+                request.args.get("iss", ""),
+                request.args.get("code", ""),
+                request.args.get("error", ""),
+            )
+            query = {"kagnode_attempt": attempt}
+        except AccountLinkError:
+            pass
+        response = redirect("/unlock?" + urlencode(query), code=303)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        return response
+
     @app.post("/api/kagnode-login")
     def kagnode_login():
         if session_state():
@@ -1308,7 +1330,9 @@ def create_app(data_dir, preview=False, legacy_email=None):
                             "Too many sign-in requests. Try again later.", 429
                         )
                     bucket.append(now)
-                result = account_signins.start(browser, request.host_url.rstrip("/"))
+                result = account_signins.start_browser(
+                    browser, request.host_url.rstrip("/")
+                )
             elif action == "cancel":
                 result = account_signins.cancel(browser, attempt)
             elif action == "status":
