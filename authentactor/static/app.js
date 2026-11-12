@@ -213,8 +213,11 @@ window.KagNodeAccountRequest = async (action = "state", data = {}) => {
     : api("/kagnode-account", "POST", { action, ...data });
 };
 let providerAttempt = "";
+let providerReady = false;
 window.KagNodeLoginHost = {
   state: () => ({
+    issuer: state.providerIssuer,
+    ready: providerReady,
     enabled: state.providerEnabled === true && !state.unlocked && !state.demo,
   }),
   request: async (action, data) => {
@@ -239,7 +242,8 @@ window.KagNodeLoginHost = {
     $("provider-vault-note").hidden = false;
     $("provider-local-login").hidden = false;
     $("auth-switch").hidden = true;
-    $("master-password").focus();
+    if (!window.KagNodeLogin?.advance($("auth-form"), { focus: true }))
+      $("master-password").focus();
   },
 };
 function showAuth(mode) {
@@ -262,7 +266,7 @@ function showAuth(mode) {
     $("provider-vault-note").hidden = true;
     $("provider-local-login").hidden = true;
     $("auth-switch").hidden = false;
-    window.KagNodeLogin?.reset($("provider-login"));
+    if (providerReady) window.KagNodeLogin?.reset($("provider-login"));
   }
   $("loading").hidden = true;
   $("dashboard").hidden = true;
@@ -278,6 +282,7 @@ function showAuth(mode) {
     : "Create an account";
   $("confirm-wrap").hidden = !signup;
   $("confirm-password").required = signup;
+  $("confirm-password").disabled = !signup;
   $("master-password").minLength = signup ? 12 : 1;
   $("master-password").autocomplete = signup
     ? "new-password"
@@ -1710,6 +1715,7 @@ async function boot() {
     const data = await api("/status");
     state.initialized = data.initialized;
     state.preview = data.preview;
+    state.providerIssuer = data.provider_issuer;
     state.providerEnabled = data.provider_enabled === true;
     state.loginCsrf = data.unlocked ? null : data.csrf;
     state.account = data.account;
@@ -1721,6 +1727,8 @@ async function boot() {
       await startDemo();
     else if (data.unlocked) await showDashboard();
     else showAuth();
+    providerReady = true;
+    window.KagNodeLogin?.refresh();
   } catch (e) {
     $("loading-label").textContent = e.message;
     $("loading").querySelector(".loading-dots").hidden = true;
