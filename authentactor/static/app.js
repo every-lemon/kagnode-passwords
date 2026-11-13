@@ -26,7 +26,6 @@ const esc = (value) =>
       })[c],
   );
 const svg = (name) => window.KagNodeCore.icon(iconAliases[name] || name);
-
 function icons(root = document) {
   root.querySelectorAll("[data-icon]").forEach((e) => {
     e.innerHTML = svg(e.dataset.icon);
@@ -36,7 +35,6 @@ const state = {
   items: [],
   view: "overview",
   filter: "all",
-  demo: false,
   csrf: null,
   initialized: false,
   authMode: "unlock",
@@ -55,12 +53,14 @@ const state = {
   codesBusy: false,
   refreshBusy: false,
   unlocked: false,
-  grid: true,
   authBusy: false,
   authTransition: false,
 };
 const titles = {
-  overview: ["Your vault", "Your codes and saved logins, together."],
+  overview: [
+    "Your vault",
+    "Search your saved logins, verification codes and notes.",
+  ],
   authenticators: [
     "Authenticators",
     "Your verification codes, ready when you need them.",
@@ -112,7 +112,6 @@ let detailItem = null,
   generatedSequence = 0,
   clipboardSequence = 0,
   lastCodeAttempt = 0;
-
 function toast(message, error = false) {
   const e = document.createElement("div");
   e.className = "toast" + (error ? " error" : "");
@@ -153,7 +152,6 @@ async function api(path, method = "GET", data) {
       response.status === 401 &&
       !["/unlock", "/setup"].includes(path) &&
       state.unlocked &&
-      !state.demo &&
       requestCsrf === state.csrf &&
       !state.authTransition
     ) {
@@ -168,19 +166,16 @@ async function api(path, method = "GET", data) {
     throw new Error("The vault session changed. Please try again.");
   return payload;
 }
-
 function showError(id, message) {
   const element = $(id);
   if (!element) return;
   element.textContent = message;
   element.hidden = !message;
 }
-
 function closeDialogs() {
   window.KagNodeControls?.close();
   document.querySelectorAll("dialog[open]").forEach((d) => d.close());
 }
-
 function clearSensitive() {
   state.items = [];
   state.csrf = null;
@@ -201,13 +196,7 @@ function clearSensitive() {
   $("confirm-password").value = "";
   $("item-password").type = "password";
 }
-
 window.KagNodeAccountRequest = async (action = "state", data = {}) => {
-  if (state.demo) {
-    if (action !== "state")
-      throw new Error("Sign in to connect a KagNode account.");
-    return { enabled: false, connected: false, admin: false, demo: true };
-  }
   return action === "state"
     ? api("/kagnode-account")
     : api("/kagnode-account", "POST", { action, ...data });
@@ -218,7 +207,7 @@ window.KagNodeLoginHost = {
   state: () => ({
     issuer: state.providerIssuer,
     ready: providerReady,
-    enabled: state.providerEnabled === true && !state.unlocked && !state.demo,
+    enabled: state.providerEnabled === true && !state.unlocked,
   }),
   request: async (action, data) => {
     if (action === "start") {
@@ -260,7 +249,6 @@ function showAuth(mode) {
       : "unlock");
   const signup = state.authMode === "setup";
   state.unlocked = false;
-  state.demo = false;
   if (!providerAttempt) {
     $("auth-email").readOnly = false;
     $("provider-vault-note").hidden = true;
@@ -275,7 +263,7 @@ function showAuth(mode) {
   $("auth-title").textContent = signup ? "Create an account" : "Sign in";
   $("auth-description").textContent = signup
     ? "Create a separate encrypted vault for this email."
-    : "Enter your email and password to open your vault.";
+    : "Open your vault with its master password.";
   $("auth-button").textContent = signup ? "Create account" : "Sign in";
   $("auth-switch").textContent = signup
     ? "Already have an account? Sign in"
@@ -289,11 +277,11 @@ function showAuth(mode) {
     : "current-password";
   $("master-password").placeholder = signup
     ? "At least 12 characters"
-    : "Your password";
+    : "Your master password";
   $("master-password").type = "password";
   $("master-note").textContent = signup
     ? "This password encrypts your vault. Email cannot be used to reset it."
-    : "Use the existing vault password. Your email identifies the account.";
+    : "KagNode sign-in confirms your identity. Your master password is still required to decrypt the vault.";
   $("auth-preview").hidden = !state.preview;
   $("provider-login").hidden = !state.providerEnabled;
   window.KagNodeLogin?.refresh();
@@ -312,7 +300,7 @@ function showAuth(mode) {
 }
 async function showDashboard() {
   window.KagNodeCore?.setSession({
-    authenticated: !state.demo,
+    authenticated: true,
     subject: state.account?.email || "",
     name: state.account?.email || "",
   });
@@ -322,25 +310,14 @@ async function showDashboard() {
   $("loading").hidden = true;
   $("auth-screen").hidden = true;
   $("dashboard").hidden = false;
-  $("demo-pill").hidden = !state.demo;
-  $("demo-banner").hidden = !state.demo;
   $("preview-banner").hidden = !state.preview;
-  $("lock-label").textContent = state.demo ? "Exit demo" : "Sign out";
-  $("sync-label").textContent = state.demo ? "Sample vault" : "Vault unlocked";
-  $("demo-exit").innerHTML =
-    (state.initialized ? "Unlock your vault" : "Set up your vault") +
-    svg("arrow-right");
-  $("vault-subtitle").textContent = state.demo
-    ? "Sample vault"
-    : state.account?.email || "Your vault";
-  $("account-email").textContent = state.demo
-    ? "demo@example.com"
-    : state.account?.email || "";
+  $("lock-label").textContent = "Sign out";
+  $("sync-label").textContent = "Vault unlocked";
+  $("vault-subtitle").textContent = state.account?.email || "Your vault";
+  $("account-email").textContent = state.account?.email || "";
   const avatar = document.querySelector(".topbar .avatar");
-  avatar.textContent = state.demo
-    ? "D"
-    : (state.account?.email || "?").charAt(0).toUpperCase();
-  avatar.title = state.account?.email || "Demo account";
+  avatar.textContent = (state.account?.email || "?").charAt(0).toUpperCase();
+  avatar.title = state.account?.email || "Account settings";
   avatar.setAttribute("aria-label", "Account settings");
   navigate(returnView, { history: "replace" });
   try {
@@ -354,7 +331,7 @@ async function showDashboard() {
 }
 async function refreshItems() {
   $("vault-load-error").hidden = true;
-  const showSkeleton = !state.demo && !state.items.length;
+  const showSkeleton = !state.items.length;
   if (showSkeleton) {
     state.loadingItems = true;
     $("items").setAttribute("aria-busy", "true");
@@ -366,9 +343,7 @@ async function refreshItems() {
     $("empty").hidden = true;
   }
   try {
-    if (state.demo) {
-      updateDemoCodes();
-    } else {
+    {
       const data = await api("/items");
       state.items = data.items;
       state.settings = data.settings;
@@ -397,26 +372,11 @@ async function refreshItems() {
   $("auto-lock").value = String(state.settings.auto_lock);
   window.KagNodeControls?.sync();
 }
-
 function renderStats() {
   const items = state.items,
     pw = items.filter((i) => i.has_password),
-    otp = items.filter((i) => i.has_totp),
-    strong = pw.filter((i) => i.strength === "strong").length;
-  $("stat-total").textContent = items.length;
-  $("stat-totp").textContent = otp.length;
-  $("stat-passwords").textContent = pw.length;
-  $("stat-strong").innerHTML =
-    strong + `<span class="stat-unit"> / ${pw.length}</span>`;
-  $("stat-strength-note").textContent =
-    pw.length && strong === pw.length
-      ? "No basic issues found"
-      : "Based on length & variety";
+    otp = items.filter((i) => i.has_totp);
   $("nav-totp-count").textContent = otp.length;
-  $("launch-totp-count").textContent =
-    otp.length + " " + (otp.length === 1 ? "account" : "accounts");
-  $("launch-password-count").textContent =
-    pw.length + " " + (pw.length === 1 ? "password" : "passwords");
   $("nav-password-count").textContent = pw.length;
   $("nav-backup-count").textContent = items.filter(
     (i) => i.has_backup_codes,
@@ -428,13 +388,26 @@ function renderStats() {
   $("filter-all").textContent = items.length;
   $("filter-totp").textContent = otp.length;
   $("filter-password").textContent = pw.length;
+  $("filter-notes").textContent = items.filter(
+    (i) => !i.has_password && !i.has_totp && !i.has_backup_codes,
+  ).length;
+  const folder = $("folder-filter"),
+    selected = folder.value;
+  folder.innerHTML =
+    '<option value="">All folders</option>' +
+    [...new Set(items.map((i) => i.folder).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b))
+      .map((name) => `<option value="${esc(name)}">${esc(name)}</option>`)
+      .join("");
+  folder.value = [...folder.options].some((o) => o.value === selected)
+    ? selected
+    : "";
 }
-
 function navigate(view, options = {}) {
   if (!titles[view] || !state.unlocked) return;
   closeDialogs();
   returnView = view;
-  const address = pagePaths[view] + (state.demo ? "?demo=1" : "");
+  const address = pagePaths[view];
   const current = location.pathname + location.search;
   if (options.history !== "none" && current !== address)
     history[options.history === "replace" ? "replaceState" : "pushState"](
@@ -446,7 +419,6 @@ function navigate(view, options = {}) {
   document
     .querySelector(".main")
     .classList.toggle("is-overview", view === "overview");
-  $("workspace-cards").hidden = view !== "overview";
   state.filter =
     view === "authenticators"
       ? "totp"
@@ -459,18 +431,19 @@ function navigate(view, options = {}) {
   $("page-title").textContent = title;
   $("page-subtitle").textContent = subtitle;
   $("breadcrumb-current").textContent =
-    view === "overview" ? "Overview" : title;
-  $("topbar-current").textContent = view === "overview" ? "Overview" : title;
+    view === "overview" ? "All items" : title;
+  $("topbar-current").textContent = view === "overview" ? "All items" : title;
   document.title = `${title} · KagNode. Passwords`;
   document.querySelectorAll(".nav-item").forEach((e) => {
     const active = e.dataset.view === view;
     e.classList.toggle("active", active);
+    if (active && e.closest("details")) e.closest("details").open = true;
     active
       ? e.setAttribute("aria-current", "page")
       : e.removeAttribute("aria-current");
   });
   document.querySelectorAll("a[data-view]").forEach((link) => {
-    link.href = pagePaths[link.dataset.view] + (state.demo ? "?demo=1" : "");
+    link.href = pagePaths[link.dataset.view];
   });
   const vault = [
     "overview",
@@ -488,8 +461,6 @@ function navigate(view, options = {}) {
   $("security-view").hidden = view !== "security";
   $("settings-view").hidden = view !== "settings";
   $("page-actions").hidden = !vault;
-  $("vault-add-button").hidden = view !== "overview";
-  $("stats").hidden = view !== "overview";
   $("filters").hidden = view !== "overview";
   $("items-heading").firstChild.textContent =
     view === "overview"
@@ -510,7 +481,6 @@ function navigate(view, options = {}) {
   $("mobile-menu").setAttribute("aria-expanded", "false");
   window.KagNodeControls?.sync();
 }
-
 function domain(url) {
   try {
     return new URL(url).hostname.replace(/^www\./, "");
@@ -518,26 +488,20 @@ function domain(url) {
     return "";
   }
 }
-
 function logo(item) {
-  const color =
-    item.demoColor ||
-    ["orange", "blue", "purple", "dark", "green", "red"][
-      [...item.name].reduce((s, c) => s + c.charCodeAt(0), 0) % 6
-    ];
+  const color = ["orange", "blue", "purple", "dark", "green", "red"][
+    [...item.name].reduce((s, c) => s + c.charCodeAt(0), 0) % 6
+  ];
   return `<div class="site-logo logo-${esc(color)}">${item.icon ? `<img src="${esc(item.icon)}" alt="" loading="lazy">` : esc(item.name.charAt(0).toUpperCase())}</div>`;
 }
-
 function formatCode(code) {
   if (!code) return "··· ···";
   const mid = code.length / 2;
   return code.slice(0, mid) + " " + code.slice(mid);
 }
-
 function timer(item) {
   return `<div class="timer" data-timer="${esc(item.id)}"><svg viewBox="0 0 28 28" aria-hidden="true"><circle class="timer-track" cx="14" cy="14" r="12"/><circle class="timer-progress" cx="14" cy="14" r="12"/></svg><span>–</span></div>`;
 }
-
 function renderItems() {
   if (state.loadingItems) return;
   let items = state.items
@@ -554,8 +518,12 @@ function renderItems() {
           ? i.has_totp
           : state.filter === "backup"
             ? i.has_backup_codes
-            : i.has_password),
+            : state.filter === "note"
+              ? !i.has_password && !i.has_totp && !i.has_backup_codes
+              : i.has_password),
     );
+  const folder = $("folder-filter").value;
+  if (folder) items = items.filter((i) => i.folder === folder);
   const search = $("search").value.trim().toLowerCase();
   items = items.filter((i) =>
     [i.name, i.username, i.url, i.folder].some((v) =>
@@ -567,12 +535,15 @@ function renderItems() {
       ? b.updated_at - a.updated_at
       : a.name.localeCompare(b.name),
   );
-  $("items").classList.toggle("list-layout", !state.grid);
   $("items").innerHTML = items
-    .map(
-      (i) =>
-        `<article class="item-card" data-id="${esc(i.id)}"><div class="item-card-heading">${logo(i)}<button class="item-title" data-action="detail"><strong>${esc(i.name)}</strong><small>${esc(i.username || domain(i.url) || "Personal account")}</small></button><button class="icon-button ${i.favorite ? "favorite-active" : ""}" data-action="favorite" aria-label="${i.favorite ? "Remove from" : "Add to"} favorites" aria-pressed="${i.favorite}">${svg("star")}</button></div>${itemCredentials(i)}<div class="item-card-footer">${i.url ? `<a href="${esc(i.url)}" target="_blank" rel="noopener noreferrer">${svg("globe")}${esc(domain(i.url))}</a>` : `<span>${esc(i.folder || "Personal vault")}</span>`}<button class="text-button" data-action="detail">View details ${svg("arrow-right")}</button></div></article>`,
-    )
+    .map((i) => {
+      const types = [
+        i.has_password && "Password",
+        i.has_totp && "Authenticator",
+        i.has_backup_codes && "Backup codes",
+      ].filter(Boolean);
+      return `<article class="item-card vault-row" data-id="${esc(i.id)}"><div class="vault-row-identity">${logo(i)}<button class="item-title" data-action="detail" aria-label="Open ${esc(i.name)}"><strong>${esc(i.name)}</strong><small>${esc(i.username || domain(i.url) || i.folder || "Secure note")}</small></button></div><div class="vault-row-kind"><span>${esc(types.join(" · ") || "Secure note")}</span>${i.folder ? `<small>${esc(i.folder)}</small>` : ""}${i.has_backup_codes ? `<button class="backup-summary" data-action="detail">${i.backup_codes_remaining} of ${i.backup_codes_total} backup codes available</button>` : ""}</div><div class="vault-row-copy">${i.has_totp ? `<button class="code-text" data-code="${esc(i.id)}" data-action="copy-code" aria-label="Copy ${esc(i.name)} verification code">${formatCode(i.code)}</button>${timer(i)}` : i.has_password ? `<button class="icon-button" data-action="copy-password" aria-label="Copy ${esc(i.name)} password">${svg("copy")}</button>` : `<button class="icon-button" data-action="detail" aria-label="Open ${esc(i.name)} details">${svg("arrow-right")}</button>`}</div><button class="icon-button ${i.favorite ? "favorite-active" : ""}" data-action="favorite" aria-label="${i.favorite ? "Remove from" : "Add to"} favorites" aria-pressed="${i.favorite}">${svg("star")}</button></article>`;
+    })
     .join("");
   $("empty").hidden = items.length > 0;
   $("items-footer").hidden = !items.length;
@@ -585,14 +556,13 @@ function renderItems() {
       ? "No matching items."
       : state.view === "favorites"
         ? "Keep your favorites close."
-        : "Nothing here just yet."
-    : "Make yourself at home.";
+        : "No items in this view."
+    : "Your vault is empty.";
   $("empty-description").innerHTML = search
     ? "Try another name, account, or website."
     : state.view === "favorites"
       ? "Tap the star on an item to keep it here."
-      : "Add an authenticator, saved login, or backup codes to get started.";
-  $("empty-add").hidden = !!search || state.view === "favorites";
+      : "Use Add new item to save a login, authenticator, recovery codes or a private note.";
   document
     .querySelectorAll("[data-filter]")
     .forEach((e) =>
@@ -600,20 +570,6 @@ function renderItems() {
     );
   tickTimers();
 }
-
-function itemCredentials(i) {
-  let content = "";
-  if (i.has_totp)
-    content = `<div class="code-area"><button class="code-text" data-code="${esc(i.id)}" data-action="copy-code" aria-label="Copy ${esc(i.name)} verification code">${formatCode(i.code)}</button><div class="code-side"><button class="icon-button" data-action="copy-code" aria-label="Copy verification code">${svg("copy")}</button>${timer(i)}</div></div><div class="item-type-line">${svg("fingerprint")}Verification code · ${i.period}s${i.has_password ? '<span class="pill">Password saved</span>' : ""}</div>`;
-  else if (i.has_password)
-    content = `<div class="code-area password-area"><button class="code-text" data-action="copy-password" aria-label="Copy ${esc(i.name)} password">••••••••••••</button><button class="icon-button" data-action="copy-password" aria-label="Copy password">${svg("copy")}</button></div><div class="item-type-line">${svg("key")}Password<span class="pill ${esc(i.strength)}">${esc(i.strength?.charAt(0).toUpperCase() + i.strength?.slice(1))}</span></div>`;
-  if (i.has_backup_codes)
-    content += `<button class="backup-summary" data-action="detail">${svg("shield-check")}<span>${i.backup_codes_remaining} of ${i.backup_codes_total} backup codes available</span>${svg("arrow-right")}</button>`;
-  if (!i.has_totp && !i.has_password && !i.has_backup_codes)
-    content = `<div class="item-type-line">${svg("shield-check")}Secure note</div>`;
-  return content;
-}
-
 function tickTimers() {
   const now = (Date.now() + state.serverOffset) / 1000;
   document.querySelectorAll("[data-timer]").forEach((el) => {
@@ -640,9 +596,7 @@ async function refreshCodes() {
   state.codesBusy = true;
   lastCodeAttempt = Date.now();
   try {
-    if (state.demo) {
-      updateDemoCodes();
-    } else {
+    {
       const data = await api("/codes");
       state.serverOffset = data.server_time * 1000 - Date.now();
       for (const c of data.codes) {
@@ -701,9 +655,7 @@ async function itemAction(action, id) {
   if (!item) return;
   try {
     if (action === "favorite") {
-      if (state.demo) {
-        item.favorite = !item.favorite;
-      } else {
+      {
         await api("/items/" + id, "PUT", {
           favorite: !item.favorite,
         });
@@ -721,16 +673,13 @@ async function itemAction(action, id) {
       await copy(item.code, "Verification code copied");
     }
     if (action === "copy-password") {
-      const data = state.demo
-        ? demoDetails(id)
-        : (await api("/items/" + id)).item;
+      const data = (await api("/items/" + id)).item;
       await copy(data.password, "Password copied");
     }
   } catch (e) {
     toast(e.message, true);
   }
 }
-
 function setItemType(type) {
   state.itemType = type;
   for (const t of ["password", "totp", "both", "backup", "note"]) {
@@ -746,10 +695,6 @@ function setItemType(type) {
   $("item-notes").required = type === "note";
 }
 async function openItem(id = null, prefill = "") {
-  if (state.demo) {
-    toast("Set up your vault to save your own items.");
-    return;
-  }
   closeDialogs();
   $("item-form").reset();
   $("item-password").type = "password";
@@ -816,7 +761,6 @@ async function openItem(id = null, prefill = "") {
   window.KagNodeControls?.sync();
   $("item-dialog").showModal();
 }
-
 function renderIconPreview() {
   const url = state.itemIcon;
   $("item-icon-preview").innerHTML = url
@@ -858,7 +802,6 @@ async function fetchItemIcon(quiet = false) {
 }
 async function saveItem(event) {
   event.preventDefault();
-  if (state.demo) return;
   const btn = $("save-item");
   btn.disabled = true;
   showError("item-error", "");
@@ -892,6 +835,9 @@ async function saveItem(event) {
       state.editId ? "PUT" : "POST",
       data,
     );
+    $("item-form").dispatchEvent(
+      new CustomEvent("kagnode:form-saved", { bubbles: true }),
+    );
     $("item-dialog").close();
     toast(state.editId ? "Changes saved" : "Item added to your vault");
     await refreshItems();
@@ -917,7 +863,7 @@ async function parseSetupLink() {
 }
 async function openDetail(id) {
   try {
-    const i = state.demo ? demoDetails(id) : (await api("/items/" + id)).item;
+    const i = (await api("/items/" + id)).item;
     detailItem = i;
     const summary = state.items.find((x) => x.id === id);
     $("detail-content").innerHTML =
@@ -928,14 +874,12 @@ async function openDetail(id) {
     toast(e.message, true);
   }
 }
-
 function backupCodeDetails(item) {
   const codes = item.backup_codes || [];
   if (!codes.length) return "";
   const available = codes.filter((c) => !c.used).length;
   return `<section class="backup-details" aria-label="Backup codes"><div class="backup-details-heading"><h3>Backup codes</h3><span>${available} of ${codes.length} available</span></div><p class="small-note">Copying does not mark a code as used. After the service accepts it, mark it here.</p><div class="backup-code-list">${codes.map((c, index) => `<div class="backup-code-row ${c.used ? "is-used" : ""}" data-backup-id="${esc(c.id)}"><span class="backup-code-number">${index + 1}</span><output class="backup-code-value" aria-label="Backup code ${index + 1}">•••• •••• ••••</output><div class="backup-code-actions"><button type="button" class="icon-button" data-backup-action="reveal" aria-label="Show backup code ${index + 1}" aria-pressed="false">${svg("eye")}</button><button type="button" class="icon-button" data-backup-action="copy" aria-label="Copy backup code ${index + 1}" ${c.used ? "disabled" : ""}>${svg("copy")}</button><button type="button" class="button secondary small backup-usage" data-backup-action="usage" aria-label="${c.used ? "Mark available" : "Mark used"} backup code ${index + 1}">${svg(c.used ? "refresh" : "check")}<span>${c.used ? "Mark available" : "Mark used"}</span></button></div><span class="backup-code-status">${c.used ? "Used" + (c.used_at ? " · " + esc(new Date(c.used_at * 1000).toLocaleDateString()) : "") : "Available"}</span></div>`).join("")}</div></section>`;
 }
-
 async function backupCodeAction(button) {
   const item = detailItem,
     row = button.closest("[data-backup-id]");
@@ -957,10 +901,6 @@ async function backupCodeAction(button) {
   } else if (action === "copy" && !code.used)
     await copy(code.code, "Backup code copied; mark it used after signing in");
   else if (action === "usage") {
-    if (state.demo) {
-      toast("Sample codes stay unchanged in the demo vault.");
-      return;
-    }
     button.disabled = true;
     try {
       await api(`/items/${item.id}/backup-codes/${code.id}/usage`, "POST", {
@@ -979,11 +919,9 @@ async function backupCodeAction(button) {
     }
   }
 }
-
 function detailRow(label, value, key) {
   return `<div class="detail-row"><label>${label}</label><div><output>${esc(value)}</output><button class="icon-button" data-detail-copy="${key}" aria-label="Copy ${label.toLowerCase()}">${svg("copy")}</button></div></div>`;
 }
-
 function utility(title, content, submitLabel, handler, danger = false) {
   $("utility-content").innerHTML =
     `<div class="modal-heading"><div><span class="eyebrow">YOUR PERSONAL VAULT</span><h2>${title}</h2></div><button class="icon-button close-dialog" aria-label="Close">${svg("x")}</button></div><form id="utility-form" class="utility-form">${content}<div id="utility-error" class="form-error" role="alert" hidden></div><div class="utility-actions"><button type="button" class="button secondary close-dialog">Cancel</button><button type="submit" id="utility-submit" class="button ${danger ? "danger" : "primary"}">${submitLabel}</button></div></form>`;
@@ -1001,12 +939,7 @@ function utility(title, content, submitLabel, handler, danger = false) {
   });
   $("utility-dialog").showModal();
 }
-
 function deleteItem() {
-  if (state.demo) {
-    toast("Sample items stay in the demo vault.");
-    return;
-  }
   const i = detailItem;
   closeDialogs();
   utility(
@@ -1021,7 +954,6 @@ function deleteItem() {
     true,
   );
 }
-
 function generatorOptions() {
   return {
     length: Number($("password-length").value),
@@ -1032,41 +964,10 @@ function generatorOptions() {
     exclude_ambiguous: $("gen-exclude").checked,
   };
 }
-
-function secureDemoPassword(options) {
-  let alphabet = "";
-  if (options.uppercase) alphabet += "ABCDEFGHJKLMNPQRSTUVWXYZ";
-  if (options.lowercase) alphabet += "abcdefghijkmnpqrstuvwxyz";
-  if (options.numbers) alphabet += "23456789";
-  if (options.symbols) alphabet += "!@#$%^&*-_=+";
-  if (!alphabet) throw new Error("Select at least one character type.");
-  const chars = [];
-  const array = new Uint32Array(1);
-  for (let j = 0; j < options.length; j++) {
-    do {
-      crypto.getRandomValues(array);
-    } while (
-      array[0] >=
-      Math.floor(4294967296 / alphabet.length) * alphabet.length
-    );
-    chars.push(alphabet[array[0] % alphabet.length]);
-  }
-  return chars.join("");
-}
 async function generate() {
   const seq = ++generatedSequence,
     options = generatorOptions();
-  const data = state.demo
-    ? {
-        password: secureDemoPassword(options),
-        strength:
-          options.length >= 16
-            ? "strong"
-            : options.length >= 12
-              ? "fair"
-              : "weak",
-      }
-    : await api("/generate", "POST", options);
+  const data = await api("/generate", "POST", options);
   if (seq !== generatedSequence || !state.unlocked) return;
   state.generated = data.password;
   $("generated-password").textContent = data.password;
@@ -1076,7 +977,6 @@ async function generate() {
     " password";
   document.querySelector(".strength-line").dataset.strength = data.strength;
 }
-
 function renderSecurity() {
   const pw = state.items.filter((i) => i.has_password),
     flagged = pw.filter((i) => i.strength !== "strong" || i.reused);
@@ -1102,10 +1002,6 @@ function renderSecurity() {
       `<div class="empty-state"><div>${svg("check-circle")}</div><h3>No weak or repeated passwords found.</h3><p>Your saved passwords pass the basic length, variety, and reuse checks.</p></div>`;
 }
 async function backup() {
-  if (state.demo) {
-    toast("Set up your vault to export an encrypted backup.");
-    return;
-  }
   try {
     const data = await api("/backup");
     const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -1125,12 +1021,7 @@ async function backup() {
     toast(e.message, true);
   }
 }
-
 function restore() {
-  if (state.demo) {
-    toast("Set up your vault to restore a backup.");
-    return;
-  }
   utility(
     "Restore a backup",
     `<p>Add items from a compatible encrypted backup. Your existing items are kept. Use the master password that protected the backup when it was created.</p><div class="field"><label for="backup-file">Encrypted backup file</label><input type="file" id="backup-file" accept=".json,application/json" required></div><div class="field"><label for="backup-password">Backup’s master password</label><input type="password" id="backup-password" autocomplete="off" required maxlength="1024"></div>`,
@@ -1156,12 +1047,7 @@ function restore() {
     },
   );
 }
-
 function changeMaster() {
-  if (state.demo) {
-    toast("Set up your vault to change its master password.");
-    return;
-  }
   utility(
     "Change master password",
     `<p>Your vault will be re-encrypted and other sessions locked. Existing backups will still need their original password.</p><div class="field"><label for="current-master">Current master password</label><input id="current-master" type="password" autocomplete="current-password" required maxlength="1024"></div><div class="field"><label for="new-master">New master password · at least 12 characters</label><input id="new-master" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required></div><div class="field"><label for="new-master-confirm">Confirm new password</label><input id="new-master-confirm" type="password" autocomplete="new-password" required maxlength="1024"></div>`,
@@ -1183,100 +1069,6 @@ function changeMaster() {
     },
   );
 }
-const demoSecretPassword = "Example-only-Password!42";
-
-function demoDetails(id) {
-  const i = state.items.find((x) => x.id === id);
-  return {
-    ...i,
-    password: i.has_password ? demoSecretPassword : "",
-    secret: i.has_totp ? "JBSWY3DPEHPK3PXP" : "",
-    algorithm: "SHA1",
-    backup_codes: i.has_backup_codes
-      ? [
-          {
-            id: "sample-1",
-            code: "DEMO-1234-5678",
-            used: false,
-            used_at: null,
-          },
-          {
-            id: "sample-2",
-            code: "DEMO-8765-4321",
-            used: true,
-            used_at: 1700000000,
-          },
-        ]
-      : [],
-    notes:
-      "Sample item for exploring KagNode Passwords. This is not a real account.",
-  };
-}
-
-function updateDemoCodes() {
-  const now = Date.now() / 1000;
-  state.serverOffset = 0;
-  state.items
-    .filter((i) => i.has_totp)
-    .forEach((i, j) => {
-      i.code = String(
-        (Math.floor(now / i.period) * 7919 + (j + 1) * 148451) % 1000000,
-      ).padStart(6, "0");
-      i.expires_at = (Math.floor(now / i.period) + 1) * i.period;
-    });
-}
-async function startDemo() {
-  state.demo = true;
-  state.settings = {
-    auto_lock: 15,
-  };
-  const samples = [
-    [
-      "Cloudflare",
-      "hello@example.com",
-      "cloudflare.com",
-      true,
-      true,
-      true,
-      "orange",
-    ],
-    ["GitHub", "alex@example.com", "github.com", true, true, true, "dark"],
-    ["Google", "alex@gmail.com", "google.com", true, true, false, "blue"],
-    ["Figma", "alex@studio.design", "figma.com", false, true, false, "purple"],
-    ["Amazon", "alex@example.com", "amazon.com", true, false, false, "orange"],
-    [
-      "Microsoft",
-      "alex@outlook.com",
-      "microsoft.com",
-      false,
-      true,
-      false,
-      "blue",
-    ],
-  ];
-  state.items = samples.map((s, j) => ({
-    id: "demo-" + j,
-    name: s[0],
-    username: s[1],
-    url: "https://" + s[2],
-    has_totp: s[3],
-    has_password: s[4],
-    has_backup_codes: j === 1,
-    backup_codes_total: j === 1 ? 2 : 0,
-    backup_codes_remaining: j === 1 ? 1 : 0,
-    favorite: s[5],
-    demoColor: s[6],
-    icon: "",
-    strength: j === 3 ? "fair" : "strong",
-    reused: false,
-    period: 30,
-    digits: 6,
-    algorithm: "SHA1",
-    updated_at: Date.now() / 1000 - j * 8000,
-  }));
-  await showDashboard();
-}
-
 function bind() {
   document.querySelectorAll("[data-view]").forEach((e) =>
     e.addEventListener("click", (event) => {
@@ -1294,11 +1086,6 @@ function bind() {
     }),
   );
   window.addEventListener("popstate", () => {
-    const demo = new URLSearchParams(location.search).get("demo") === "1";
-    if (state.demo !== demo) {
-      location.reload();
-      return;
-    }
     if (!state.unlocked) {
       showAuth();
       return;
@@ -1355,9 +1142,11 @@ function bind() {
       $("provider-vault-note").hidden = true;
       $("provider-local-login").hidden = true;
       $("auth-switch").hidden = false;
-      state.demo = false;
       $("master-password").value = "";
       $("confirm-password").value = "";
+      $("auth-form").dispatchEvent(
+        new CustomEvent("kagnode:form-saved", { bubbles: true }),
+      );
       await showDashboard();
     } catch (err) {
       showError("auth-error", err.message);
@@ -1381,13 +1170,7 @@ function bind() {
       }).catch(() => {});
     showAuth("unlock");
   });
-  $("demo-button").addEventListener("click", startDemo);
-  $("demo-exit").addEventListener("click", () => showAuth());
   $("lock-button").addEventListener("click", async () => {
-    if (state.demo) {
-      showAuth();
-      return;
-    }
     state.authTransition = true;
     try {
       loading("Signing out…");
@@ -1405,13 +1188,10 @@ function bind() {
     }
   });
   $("add-button").addEventListener("click", () => openItem());
-  $("vault-add-button").addEventListener("click", () => openItem());
   $("quick-search").addEventListener("click", openQuickSearch);
-  $("empty-add").addEventListener("click", () => openItem());
   $("search").addEventListener("input", renderItems);
   $("sort").addEventListener("change", renderItems);
-  $("grid-view").addEventListener("click", () => setLayout(true));
-  $("list-view").addEventListener("click", () => setLayout(false));
+  $("folder-filter").addEventListener("change", renderItems);
   $("items").addEventListener("click", (e) => {
     const button = e.target.closest("[data-action]");
     if (button)
@@ -1420,6 +1200,7 @@ function bind() {
   for (const type of ["password", "totp", "both", "backup", "note"])
     $("type-" + type).addEventListener("click", () => setItemType(type));
   $("item-form").addEventListener("submit", saveItem);
+  $("item-dialog").addEventListener("close", () => $("item-form").reset());
   $("item-name").addEventListener("input", renderIconPreview);
   $("item-url").addEventListener("input", () => {
     state.itemIcon = "";
@@ -1441,7 +1222,6 @@ function bind() {
       toast(e.message, true);
     }
   });
-  $("generator-promo").addEventListener("click", () => navigate("generator"));
   $("password-length").addEventListener("input", () => {
     $("length-value").textContent = $("password-length").value;
   });
@@ -1470,10 +1250,9 @@ function bind() {
   $("auto-lock").addEventListener("change", async () => {
     try {
       const minutes = Number($("auto-lock").value);
-      if (!state.demo)
-        await api("/settings", "PUT", {
-          auto_lock: minutes,
-        });
+      await api("/settings", "PUT", {
+        auto_lock: minutes,
+      });
       state.settings.auto_lock = minutes;
       toast("Automatic lock updated");
     } catch (e) {
@@ -1596,7 +1375,6 @@ function bind() {
     if (e.persisted) location.reload();
   });
 }
-
 function openQuickSearch() {
   if (!state.unlocked) return;
   closeDialogs();
@@ -1663,21 +1441,9 @@ function openQuickSearch() {
   $("utility-dialog").showModal();
   $("global-search").focus();
 }
-
-function setLayout(grid) {
-  state.grid = grid;
-  $("grid-view").classList.toggle("selected", grid);
-  $("list-view").classList.toggle("selected", !grid);
-  $("grid-view").setAttribute("aria-pressed", String(grid));
-  $("list-view").setAttribute("aria-pressed", String(!grid));
-  renderItems();
-}
 async function heartbeat() {
   if (!state.unlocked) return;
-  if (
-    !state.demo &&
-    Date.now() - state.lastInput >= state.settings.auto_lock * 60000
-  ) {
+  if (Date.now() - state.lastInput >= state.settings.auto_lock * 60000) {
     state.authTransition = true;
     try {
       await api("/lock", "POST");
@@ -1695,7 +1461,6 @@ async function heartbeat() {
   )
     await refreshCodes();
   if (
-    !state.demo &&
     state.lastInput > state.lastActivity &&
     Date.now() - state.lastActivity > 30000
   ) {
@@ -1723,9 +1488,7 @@ async function boot() {
     state.settings = data.settings || {
       auto_lock: 15,
     };
-    if (new URLSearchParams(location.search).get("demo") === "1")
-      await startDemo();
-    else if (data.unlocked) await showDashboard();
+    if (data.unlocked) await showDashboard();
     else showAuth();
     providerReady = true;
     window.KagNodeLogin?.refresh();
@@ -1741,13 +1504,12 @@ async function boot() {
   setInterval(heartbeat, 1000);
 }
 boot();
-
 async function renderPasswordTools() {
   const view = state.view;
   const panel = $("passwords-tools");
   panel.textContent = "Loading…";
   if (view === "trash") {
-    const { items } = state.demo ? { items: [] } : await api("/trash");
+    const { items } = await api("/trash");
     if (state.view !== view) return;
     panel.innerHTML = `<div class="panel settings-panel"><h2>Recently removed</h2><p>Items stay here until you restore them or permanently delete them.</p><div class="trash-items">${items.length ? items.map((i) => `<article class="setting-row"><div><strong>${esc(i.name)}</strong><p>${esc(i.folder || "No folder")} · Removed ${esc(new Date(i.deleted_at * 1000).toLocaleDateString())}</p></div><div class="passwords-actions"><button class="button secondary small" data-restore="${esc(i.id)}">Restore</button><button class="button danger small" data-purge="${esc(i.id)}">Delete permanently</button></div></article>`).join("") : '<p class="small-note">Trash is empty.</p>'}</div></div>`;
     panel.querySelectorAll("[data-restore]").forEach((button) =>
@@ -1783,14 +1545,13 @@ async function renderPasswordTools() {
       }),
     );
   } else {
-    const config = state.demo ? { configured: false } : await api("/clients");
+    const config = await api("/clients");
     if (state.view !== view) return;
     panel.innerHTML = `<div class="panel settings-panel"><span class="eyebrow">BITWARDEN CLIENTS</span><h2>Connect your devices</h2><p>The compatible service uses Vaultwarden. Your current KagNode vault stays separate and keeps working.</p>${config.configured ? `<div class="setting-row"><div><strong>Self-hosted server URL</strong><p><code>${esc(config.server)}</code></p></div><button class="button secondary small" id="copy-client-server">Copy URL</button></div><p>In the Bitwarden app or extension, choose <strong>Self-hosted</strong>, enter this URL, and sign in with your account on that server.</p><a class="button primary" href="${esc(config.server)}" target="_blank" rel="noopener noreferrer">Open compatible vault ${svg("arrow-up-right")}</a>` : '<div class="notice">The compatible vault has not been connected. Ask your server administrator to enable access for Bitwarden apps and extensions.</div>'}</div><div class="panel settings-panel"><h2>Transfer your existing items</h2><p>Export a Bitwarden JSON file, then import it in the compatible web vault. Passwords, authenticator keys, folders, and notes are included. Backup codes become notes with their used status. Trash is excluded. Nothing is removed from this vault.</p><p class="small-note">This export contains readable passwords. Import it privately, verify your items, then remove the export from your Downloads and Trash.</p><button class="button secondary" id="export-bitwarden">Export for Bitwarden</button></div>`;
     $("copy-client-server")?.addEventListener("click", () =>
       copy(config.server, "Server URL copied"),
     );
     $("export-bitwarden").addEventListener("click", () => {
-      if (state.demo) return toast("Sign in to export your own vault.");
       utility(
         "Export readable vault data",
         '<p>This file contains passwords and authenticator secrets without encryption. Only continue on your private device.</p><label for="export-password">Master password</label><input type="password" id="export-password" autocomplete="current-password" required maxlength="1024">',

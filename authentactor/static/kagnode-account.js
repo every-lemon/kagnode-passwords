@@ -29,6 +29,12 @@
     pendingAttempt = null,
     sequence = 0;
   const panels = new Set();
+  window.KagNodeWhatsNewHost = {
+    ready: () =>
+      !!current?.local_name &&
+      window.KagNodeTheme?.session.authenticated === true,
+    headers,
+  };
   async function headers() {
     const result = { Accept: "application/json" };
     if (app === "httpboot") {
@@ -114,6 +120,7 @@
         authenticated: true,
         subject: String(current.local_name),
       });
+    window.KagNodeWhatsNew?.refresh();
     const profile = current.enabled ? current.profile : null;
     document.querySelectorAll("[data-kn-account-name]").forEach((node) => {
       const next =
@@ -410,12 +417,7 @@
       const actions = el("div", "", "kn-account-actions");
       if (!current.enabled)
         actions.append(
-          el(
-            "p",
-            current.demo
-              ? "Sign in to connect a KagNode account."
-              : "KagNode Account sync is disabled for this installation.",
-          ),
+          el("p", "KagNode Account sync is disabled for this installation."),
         );
       else if (current.connected) {
         actions.append(

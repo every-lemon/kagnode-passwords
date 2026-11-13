@@ -59,12 +59,13 @@ class PageRouteTests(unittest.TestCase):
         response.close()
         self.assertEqual(self.client.get("/api/items").status_code, 401)
 
-    def test_demo_does_not_authorize_real_vault_apis(self):
+    def test_removed_demo_cannot_bypass_locked_page_or_api(self):
         self.setup_vault()
         self.client.post("/api/lock", json={}, headers=self.headers)
         for path in PAGE_PATHS:
             response = self.client.get(path + "?demo=1")
-            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.status_code, 302)
+            self.assertTrue(response.location.startswith("/unlock?next="))
             response.close()
         for path in ("/api/items", "/api/codes", "/api/backup"):
             self.assertEqual(self.client.get(path + "?demo=1").status_code, 401)
@@ -85,7 +86,7 @@ class PageRouteTests(unittest.TestCase):
 
     def test_unknown_path_is_not_a_vault_page(self):
         self.assertEqual(self.client.get("/missing-page").status_code, 404)
-        self.assertEqual(self.client.get("/demo").location, "/overview?demo=1")
+        self.assertEqual(self.client.get("/demo").status_code, 404)
 
 
 if __name__ == "__main__":

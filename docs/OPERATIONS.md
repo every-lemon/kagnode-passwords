@@ -18,7 +18,7 @@ python3 -m venv .venv
   --host 127.0.0.1 --port 8091 --data-dir ./preview-data --preview
 ```
 
-Open [the local app](http://127.0.0.1:8091/) to create an email account and vault password, or [the sample vault](http://127.0.0.1:8091/demo) to explore fictional entries. No default password is supplied. Keep this personal server private. Anyone allowed to reach the app can create a separate account; email addresses are identifiers and are not verified. Use test credentials on HTTP; set up HTTPS before accessing real secrets over a network.
+Open [the local app](http://127.0.0.1:8091/) to create a local account and encrypted vault. The production sample-vault route was removed in 5.0.2; disposable test data is confined to the test fixtures. No default password is supplied. Keep this personal server private. Anyone allowed to reach the app can create a separate account; email addresses are identifiers and are not verified. Use test credentials on HTTP; set up HTTPS before accessing real secrets over a network.
 
 When updating an existing installation, keep its existing `--data-dir` value. The Python module, `AUTHENTACTOR_HOST`, `AUTHENTACTOR_PORT`, `AUTHENTACTOR_DATA`, compatibility service name and default `/var/lib/authentactor` location are retained. This update does not relocate or reset a vault. Without explicit flags, the legacy command still binds `0.0.0.0:80`; the example above deliberately uses an unprivileged loopback port.
 
@@ -26,7 +26,7 @@ When updating an existing installation, keep its existing `--data-dir` value. Th
 
 | Path | Page |
 | --- | --- |
-| `/overview` | Vault overview and recent items |
+| `/overview` | Searchable vault list and contextual item details |
 | `/authenticators` | Time-based verification codes |
 | `/passwords` | Saved logins |
 | `/backup-codes` | Accounts with recovery codes and remaining counts |
@@ -36,15 +36,14 @@ When updating an existing installation, keep its existing `--data-dir` value. Th
 | `/settings` | Automatic locking, master password and backups |
 | `/setup` | Create an email account and its separate vault |
 | `/unlock` | Sign in with an email and vault password |
-| `/demo` | Fictional sample vault |
 
-Each section is a real server route. Links work directly and after refresh; browser Back/Forward follows navigation. A locked deep link returns to the requested section after setup or unlock. Redirect destinations are limited to known local pages. The demo serves an empty shell with fictional browser data; it never authorizes the vault API.
+Each section is a real server route. Links work directly and after refresh; browser Back/Forward follows navigation. A locked deep link returns to the requested section after setup or unlock. Redirect destinations are limited to known local pages.
 
 ## What works
 
 - TOTP from a Base32 setup key or `otpauth://totp/` link, including SHA1/SHA256/SHA512, 6/8 digits and 30/60-second periods. Accurate server time is required.
 - Backup-code-only items, or recovery codes alongside a password or authenticator. Paste one code per line, up to 100 per item. Reveal and copy codes individually; explicitly mark a code used after the service accepts it, or undo that mark. Copying and viewing never consume a code. Used codes remain visible with their usage date; copying one requires marking it available first.
-- Password-only, authenticator-only or combined entries; favorites, search, sorting, grid/list views and quick search with Ctrl/Cmd+K.
+- Password-only, authenticator-only or combined entries; favorites, search, folder/type filters, sorting and quick search with Ctrl/Cmd+K.
 - Password generation with length and character controls. Security checks are local heuristics, not a breach-database lookup.
 - Optional website icons fetched directly by your server. Private/internal addresses, unsafe redirects and oversized responses are rejected. Letter icons work without a fetch.
 - Automatic lock after 5/15/30/60 idle minutes and an eight-hour maximum session lifetime.

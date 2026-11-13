@@ -95,9 +95,6 @@
 </p>
 <div class="kn-core-login-links">
   <button id="auth-switch" type="button">Create an account</button>
-  <button id="demo-button" type="button">
-    <span data-icon="layout"></span>Explore the demo vault
-  </button>
 </div>
 <p id="auth-preview" hidden>
   <span data-icon="info"></span>HTTP test preview · use test credentials only.
@@ -121,17 +118,16 @@
           ></button
           ><span class="topbar-context">Personal vault</span
           ><span class="topbar-slash">/</span
-          ><strong id="topbar-current">Overview</strong>
+          ><strong id="topbar-current">All items</strong>
         </div>
         <div class="topbar-right">
           <span class="kn-profile-name" data-kn-account-name>Account</span>
-          <span id="demo-pill" class="pill blue" hidden>Demo vault</span
-          ><button id="lock-button" class="button secondary small">
+          <button id="lock-button" class="button secondary small">
             <span data-icon="lock"></span
             ><span id="lock-label">Lock vault</span></button
           ><button
             type="button"
-            class="avatar"
+            class="avatar kn-core-avatar"
             data-kn-account-avatar
             data-view="settings"
             aria-label="Vault settings"
@@ -172,7 +168,7 @@
         <p class="nav-label">YOUR VAULT</p>
         <nav aria-label="Main navigation">
           <a class="nav-item active" data-view="overview" href="/overview"
-            ><span data-icon="layout"></span>Overview</a
+            ><span data-icon="list"></span>All items</a
           ><a class="nav-item" data-view="authenticators" href="/authenticators"
             ><span data-icon="fingerprint"></span>Authenticators<span
               class="nav-count"
@@ -195,43 +191,45 @@
             ><span data-icon="star"></span>Favorites</a
           >
         </nav>
-        <p class="nav-label tools-label">TOOLS</p>
-        <nav aria-label="Vault tools">
-          <a class="nav-item" data-view="notes" href="/notes"
-            ><span data-icon="edit"></span>Secure notes</a
-          >
-          <a class="nav-item" data-view="trash" href="/trash"
-            ><span data-icon="trash"></span>Trash</a
-          >
-          <a class="nav-item" data-view="clients" href="/clients"
-            ><span data-icon="globe"></span>Apps &amp; extensions</a
-          >
-          <a class="nav-item" data-view="generator" href="/generator"
-            ><span data-icon="sparkles"></span>Password generator</a
-          ><a class="nav-item" data-view="security" href="/security"
-            ><span data-icon="shield-check"></span>Security check<span
-              id="security-dot"
-              class="attention-dot"
-              hidden
-            ></span
-          ></a>
-        </nav>
-        <p class="nav-label manage-label">MANAGE</p>
-        <nav aria-label="Manage vault">
-          <a class="nav-item" data-view="settings" href="/settings"
-            ><span data-icon="settings"></span>Settings & backups</a
-          >
-        </nav>
+        <details class="vault-tools">
+          <summary>Tools &amp; settings</summary>
+          <nav aria-label="Vault tools">
+            <a class="nav-item" data-view="notes" href="/notes"
+              ><span data-icon="edit"></span>Secure notes</a
+            >
+            <a class="nav-item" data-view="trash" href="/trash"
+              ><span data-icon="trash"></span>Trash</a
+            >
+            <a class="nav-item" data-view="clients" href="/clients"
+              ><span data-icon="globe"></span>Apps &amp; extensions</a
+            >
+            <a class="nav-item" data-view="generator" href="/generator"
+              ><span data-icon="sparkles"></span>Password generator</a
+            ><a class="nav-item" data-view="security" href="/security"
+              ><span data-icon="shield-check"></span>Security check<span
+                id="security-dot"
+                class="attention-dot"
+                hidden
+              ></span
+            ></a>
+          </nav>
+
+          <nav aria-label="Manage vault">
+            <a class="nav-item" data-view="settings" href="/settings"
+              ><span data-icon="settings"></span>Settings & backups</a
+            >
+          </nav>
+        </details>
         <div class="sidebar-bottom">
           <span data-icon="lock"></span>
           <div>
             <strong>Encrypted vault</strong
-            ><small>KagNode. Passwords · 5.0.1</small>
+            ><small>KagNode. Passwords · 5.0.2</small>
           </div>
         </div>
       </aside>
       <main id="main-content" class="main" tabindex="-1">
-        <span id="breadcrumb-current" class="sr-only">Overview</span>
+        <span id="breadcrumb-current" class="sr-only">All items</span>
         <div id="preview-banner" class="notice preview-banner" hidden>
           <span data-icon="flask"></span
           ><span
@@ -239,21 +237,12 @@
             evaluating this version.</span
           >
         </div>
-        <div id="demo-banner" class="notice" hidden>
-          <span data-icon="info"></span
-          ><span
-            >You’re exploring sample data.
-            <strong>No real credentials are shown.</strong></span
-          ><button id="demo-exit" class="text-button">
-            Set up your vault<span data-icon="arrow-right"></span>
-          </button>
-        </div>
         <div class="page-heading">
           <div>
             <div class="heading-kicker">
               <span class="tiny-line"></span> YOUR VAULT
             </div>
-            <h1 id="page-title">Vault overview</h1>
+            <h1 id="page-title">Your vault</h1>
             <p id="page-subtitle">Your codes and saved logins, together.</p>
           </div>
           <div id="page-actions">
@@ -269,67 +258,6 @@
           </button>
         </div>
         <section id="vault-view">
-          <div id="workspace-cards" class="workspace-cards">
-            <a
-              class="workspace-card"
-              href="/authenticators"
-              data-view="authenticators"
-              ><span class="shortcut-icon" data-icon="fingerprint"></span>
-              <div>
-                <h2>Verification codes</h2>
-                <p id="launch-totp-count">0 accounts</p>
-              </div>
-              <span data-icon="arrow-right"></span
-            ></a>
-            <a class="workspace-card" href="/passwords" data-view="passwords"
-              ><span class="shortcut-icon" data-icon="key"></span>
-              <div>
-                <h2>Saved passwords</h2>
-                <p id="launch-password-count">0 passwords</p>
-              </div>
-              <span data-icon="arrow-right"></span
-            ></a>
-            <a class="workspace-card" href="/generator" data-view="generator"
-              ><span class="shortcut-icon" data-icon="sparkles"></span>
-              <div>
-                <h2>Generate a password</h2>
-                <p>A different password for every account.</p>
-              </div>
-              <span data-icon="arrow-right"></span
-            ></a>
-          </div>
-          <div id="stats" class="stats">
-            <div class="stat-card">
-              <div>
-                <span>Total items</span><strong id="stat-total">0</strong
-                ><small>In your personal vault</small>
-              </div>
-              <span class="stat-icon neutral" data-icon="layers"></span>
-            </div>
-            <div class="stat-card">
-              <div>
-                <span>Authenticators</span><strong id="stat-totp">0</strong
-                ><small>Time-based verification</small>
-              </div>
-              <span class="stat-icon orange-bg" data-icon="fingerprint"></span>
-            </div>
-            <div class="stat-card">
-              <div>
-                <span>Passwords</span><strong id="stat-passwords">0</strong
-                ><small>Encrypted in your vault</small>
-              </div>
-              <span class="stat-icon blue-bg" data-icon="key"></span>
-            </div>
-            <div class="stat-card">
-              <div>
-                <span>Strong passwords</span
-                ><strong id="stat-strong"
-                  >0<span class="stat-unit"> / 0</span></strong
-                ><small id="stat-strength-note">Basic password checks</small>
-              </div>
-              <span class="stat-icon green-bg" data-icon="shield-check"></span>
-            </div>
-          </div>
           <div class="vault-section">
             <div class="section-title">
               <h2 id="items-heading">
@@ -340,9 +268,7 @@
                 <span class="sync-status"
                   ><span class="status-dot"></span
                   ><span id="sync-label">Vault unlocked</span></span
-                ><button id="vault-add-button" class="button primary small">
-                  <span data-icon="plus"></span>Add item
-                </button>
+                >
               </div>
             </div>
             <div class="vault-toolbar">
@@ -356,26 +282,13 @@
                 /><kbd>/</kbd>
               </div>
               <div class="toolbar-actions">
+                <select id="folder-filter" aria-label="Filter by folder">
+                  <option value="">All folders</option>
+                </select>
                 <select id="sort" aria-label="Sort items">
                   <option value="name">Name: A–Z</option>
                   <option value="recent">Recently updated</option>
                 </select>
-                <div class="view-toggle">
-                  <button
-                    id="grid-view"
-                    class="icon-button selected"
-                    data-icon="grid"
-                    aria-label="Grid view"
-                    aria-pressed="true"
-                  ></button
-                  ><button
-                    id="list-view"
-                    class="icon-button"
-                    data-icon="list"
-                    aria-label="List view"
-                    aria-pressed="false"
-                  ></button>
-                </div>
               </div>
             </div>
             <div
@@ -383,18 +296,41 @@
               id="filters"
               role="group"
               aria-label="Filter vault items"
+              data-core-segments
             >
-              <button class="filter-tab active" data-filter="all">
+              <button
+                class="filter-tab active"
+                data-filter="all"
+                data-core-segment="all"
+              >
                 All items<span id="filter-all">0</span></button
-              ><button class="filter-tab" data-filter="totp">
+              ><button
+                class="filter-tab"
+                data-filter="totp"
+                data-core-segment="totp"
+              >
                 Authenticators<span id="filter-totp">0</span></button
-              ><button class="filter-tab" data-filter="password">
+              ><button
+                class="filter-tab"
+                data-filter="password"
+                data-core-segment="password"
+              >
                 Passwords<span id="filter-password">0</span></button
-              ><button class="filter-tab" data-filter="backup">
-                Backup codes<span id="filter-backup">0</span>
+              ><button
+                class="filter-tab"
+                data-filter="backup"
+                data-core-segment="backup"
+              >
+                Backup codes<span id="filter-backup">0</span></button
+              ><button
+                class="filter-tab"
+                data-filter="note"
+                data-core-segment="note"
+              >
+                Secure notes<span id="filter-notes">0</span>
               </button>
             </div>
-            <div id="items" class="items-grid"></div>
+            <div id="items" class="vault-list" aria-label="Vault items"></div>
             <div id="empty" class="empty-state" hidden>
               <div data-icon="shield"></div>
               <h3 id="empty-title">Your vault is ready.</h3>
@@ -402,9 +338,6 @@
                 Add your first authenticator or password.<br />You can find and
                 copy it here.
               </p>
-              <button class="button primary" id="empty-add">
-                <span data-icon="plus"></span>Add your first item
-              </button>
             </div>
             <div id="items-footer" class="items-footer">
               <span id="results-label">0 items</span
@@ -413,14 +346,6 @@
               >
             </div>
           </div>
-          <button id="generator-promo" class="generator-promo">
-            <span data-icon="sparkles"></span>
-            <div>
-              <strong>Need a new password?</strong>
-              <p>Generate one and save it to your vault.</p>
-            </div>
-            <span data-icon="arrow-right"></span>
-          </button>
         </section>
         <section id="generator-view" hidden>
           <div class="generator-layout">
@@ -859,7 +784,7 @@
         </div>
       </form>
     </dialog>
-    <dialog id="detail-dialog" class="modal detail-modal">
+    <dialog data-vault-details id="detail-dialog" class="modal detail-modal">
       <div id="detail-content"></div>
     </dialog>
     <dialog id="utility-dialog" class="modal utility-modal">

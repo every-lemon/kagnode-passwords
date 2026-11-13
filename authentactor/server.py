@@ -36,7 +36,7 @@ from flask import (
 from werkzeug.exceptions import HTTPException
 from .storage import email_address, initialize_database
 
-VERSION = "5.0.1"
+VERSION = "5.0.2"
 KDF = {"name": "scrypt", "n": 32768, "r": 8, "p": 1}
 COOKIE = "authentactor_session"
 PAGE_PATHS = (
@@ -640,8 +640,6 @@ def create_app(data_dir, preview=False, legacy_email=None):
 
     @app.get("/")
     def index():
-        if request.args.get("demo") == "1":
-            return redirect("/overview?demo=1")
         return redirect(
             "/overview"
             if session_state()
@@ -668,14 +666,8 @@ def create_app(data_dir, preview=False, legacy_email=None):
             return redirect(expected + "?" + urlencode({"next": target}))
         return send_from_directory(app.static_folder, "index.html")
 
-    @app.get("/demo")
-    def demo_page():
-        return redirect("/overview?demo=1")
-
     def vault_page():
-        # Demo routing serves only the empty shell. API authorization is always
-        # enforced separately; adding ?demo=1 never unlocks a real vault.
-        if request.args.get("demo") != "1" and not session_state():
+        if not session_state():
             destination = "/unlock" if any_accounts() else "/setup"
             return redirect(
                 destination + "?" + urlencode({"next": request.path.rstrip("/")})
@@ -1419,7 +1411,15 @@ def create_app(data_dir, preview=False, legacy_email=None):
             os.environ.get("KAGNODE_ACCOUNT_ADMIN", "") or (owner[0] if owner else "")
         )
 
-    register_flask_api(app, "passwords", authenticated, core_administrator)
+    register_flask_api(
+        app,
+        "passwords",
+        authenticated,
+        core_administrator,
+        notice_subject=lambda: str(g.vault_session["account_id"]),
+        notice_is_dismissed=profile_links.notice_is_dismissed,
+        notice_dismiss=profile_links.notice_dismiss,
+    )
 
     app.extensions["vault_testing"] = {
         "sessions": sessions,
