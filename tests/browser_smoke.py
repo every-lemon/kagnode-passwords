@@ -31,6 +31,14 @@ EMAIL = "owner@browser.test"
 PASSWORD = "Only-for-disposable-browser-tests!2048"
 
 
+def nav(page, view):
+    link = page.locator(f'nav a[data-view="{view}"]')
+    link.evaluate(
+        "e=>{const details=e.closest('details');if(details)details.open=true}"
+    )
+    link.click()
+
+
 def check_quick_search(page, theme, width):
     page.keyboard.press("Control+k")
     field = page.locator("#global-search")
@@ -65,31 +73,60 @@ def check_quick_search(page, theme, width):
     page.locator("#utility-dialog").wait_for(state="hidden")
 
 
-def check(browser, base):
+def check_layouts(browser, base):
     errors, layouts = [], []
+    seed = browser.new_context()
+    response = seed.request.post(
+        base + "/api/setup",
+        data={"email": "layout@browser.test", "password": PASSWORD},
+        headers={"X-Requested-With": "Authentactor"},
+    )
+    assert response.ok, response.text()
+    headers = {
+        "X-Requested-With": "Authentactor",
+        "X-CSRF-Token": response.json()["csrf"],
+    }
+    for item in (
+        {"name": "Google fixture", "secret": "JBSWY3DPEHPK3PXP", "folder": "Work"},
+        {
+            "name": "Mail fixture",
+            "password": "Fictional only!928",
+            "folder": "Personal",
+        },
+        {
+            "name": "Travel note",
+            "notes": "Disposable fixture only",
+            "folder": "Personal",
+        },
+    ):
+        created = seed.request.post(base + "/api/items", data=item, headers=headers)
+        assert created.status == 201, created.text()
+    saved_session = seed.storage_state()
+    seed.close()
     for theme in ("dark", "light"):
         for width, height in ((1440, 1000), (820, 1100), (390, 844), (320, 740)):
             context = browser.new_context(
                 viewport={"width": width, "height": height},
                 reduced_motion="reduce",
                 color_scheme=theme,
+                storage_state=saved_session,
             )
             context.add_init_script(
                 f"localStorage.setItem('kagnode-theme', '{'light' if theme == 'dark' else 'dark'}')"
             )
             page = context.new_page()
-            demo_profile_requests = []
+            external_requests = []
             page.on(
                 "request",
                 lambda request: (
-                    demo_profile_requests.append(request.url)
-                    if "/api/kagnode-account" in request.url
+                    external_requests.append(request.url)
+                    if not request.url.startswith(base)
                     else None
                 ),
             )
             page.on("pageerror", lambda error: errors.append(str(error)))
             for view in VIEWS:
-                page.goto(f"{base}/{view}?demo=1")
+                page.goto(f"{base}/{view}")
                 page.locator("#dashboard").wait_for(state="visible")
                 page.wait_for_function('()=>document.getElementById("loading").hidden')
                 assert (
@@ -107,6 +144,117 @@ def check(browser, base):
                         "rows=>rows.every(e=>e.querySelectorAll(':scope > .kn-core-nav-icon,:scope > [data-icon],:scope > .nav-icon').length===1)"
                     )
                     check_quick_search(page, theme, width)
+                    assert page.locator("#add-button").count() == 1
+                    assert (
+                        page.locator(
+                            "#demo-button, #workspace-cards, #vault-add-button, #empty-add"
+                        ).count()
+                        == 0
+                    )
+                    page.get_by_role(
+                        "combobox", name="Filter by folder", exact=True
+                    ).click()
+                    page.get_by_role("option", name="Personal", exact=True).click()
+                    assert page.locator("#items .vault-row").count() == 2
+                    page.locator('[data-filter="note"]').click()
+                    assert page.locator("#items .vault-row").count() == 1
+                    assert (
+                        page.locator("#items .vault-row")
+                        .inner_text()
+                        .startswith("T\nTravel note")
+                    )
+                    page.locator("#search").fill("not-present")
+                    page.locator("#empty").wait_for(state="visible")
+                    page.locator("#search").fill("")
+                    page.locator('[data-filter="all"]').click()
+                    page.get_by_role(
+                        "combobox", name="Filter by folder", exact=True
+                    ).click()
+                    page.get_by_role("option", name="All folders", exact=True).click()
+                    assert page.locator("#items .vault-row").count() == 3
+                    if theme == "dark":
+                        avatar_photo = "data:image/webp;base64,UklGRjoAAABXRUJQVlA4IC4AAADQAQCdASoQABAAAUAmJaACdLoB+AADsAD+8Gyv/20P60P60P+1j/8pV4LG5vgA"
+
+                        def profile_fixture(route):
+                            if route.request.method != "GET":
+                                return route.continue_()
+                            response = route.fetch()
+                            value = response.json()
+                            value.update(
+                                enabled=True,
+                                connected=True,
+                                profile={
+                                    "name": "Avatar fixture",
+                                    "photo": avatar_photo,
+                                },
+                            )
+                            route.fulfill(response=response, json=value)
+
+                        page.route("**/api/kagnode-account", profile_fixture)
+                        page.evaluate("window.KagNodeAccounts.refresh()")
+                        page.wait_for_function(
+                            "()=>{const i=document.querySelector('[data-kn-account-avatar] .kn-linked-avatar');return i?.complete&&i.naturalWidth===16}"
+                        )
+                        geometry = page.locator("[data-kn-account-avatar]").evaluate(
+                            """e=>{const r=e.getBoundingClientRect(),c=getComputedStyle(e);return {width:r.width,height:r.height,radius:c.borderTopLeftRadius,overflow:c.overflow,photos:e.querySelectorAll('img').length}}"""
+                        )
+                        assert abs(geometry["width"] - geometry["height"]) < 1, geometry
+                        radius = geometry["radius"]
+                        assert (
+                            float(radius[:-1]) >= 50
+                            if radius.endswith("%")
+                            else float(radius[:-2]) >= geometry["width"] / 2 - 1
+                        ), geometry
+                        assert geometry["photos"] == 1, geometry
+                        avatar_photo = ""
+                        page.evaluate("window.KagNodeAccounts.refresh()")
+                        page.wait_for_function(
+                            "()=>!document.querySelector('[data-kn-account-avatar] .kn-linked-avatar')"
+                        )
+                        page.unroute("**/api/kagnode-account", profile_fixture)
+                        page.evaluate("window.KagNodeAccounts.refresh()")
+                    if width == 1440 and theme == "dark":
+                        notices = []
+
+                        def summary(route):
+                            notices.append(route.request.method)
+                            if route.request.method == "POST":
+                                assert route.request.headers.get("x-csrf-token")
+                                assert (
+                                    route.request.headers.get("x-requested-with")
+                                    == "Authentactor"
+                                )
+                                value = {"dismissed": True}
+                            else:
+                                value = {
+                                    "available": True,
+                                    "notice": {
+                                        "id": "a" * 64,
+                                        "version": "5.0.6",
+                                        "title": "Shared controls updated",
+                                        "items": [
+                                            "A disposable update-summary fixture."
+                                        ],
+                                    },
+                                }
+                            route.fulfill(
+                                status=200,
+                                content_type="application/json",
+                                body=json.dumps(value),
+                            )
+
+                        page.route("**/api/v1/kagnode-core/whats-new**", summary)
+                        page.evaluate(
+                            "() => {document.activeElement?.blur();window.KagNodeWhatsNew.refresh()}"
+                        )
+                        sheet = page.get_by_role(
+                            "dialog", name="What's new", exact=True
+                        )
+                        sheet.wait_for(state="visible")
+                        sheet.get_by_role("button", name="Got it", exact=True).click()
+                        sheet.wait_for(state="hidden")
+                        assert "POST" in notices
+                        page.unroute("**/api/v1/kagnode-core/whats-new**", summary)
                 if (width, view) in (
                     (1440, "overview"),
                     (390, "authenticators"),
@@ -128,15 +276,21 @@ def check(browser, base):
                     == "false"
                 )
                 page.locator("#mobile-menu").click()
-                page.locator('nav a[data-view="authenticators"]').click()
-                assert "/authenticators?demo=1" in page.url
+                nav(page, "authenticators")
+                assert page.url.endswith("/authenticators")
                 assert (
                     page.locator("#mobile-menu").get_attribute("aria-expanded")
                     == "false"
                 )
-            assert not demo_profile_requests, demo_profile_requests
+            assert not external_requests, external_requests
             context.close()
 
+    assert not errors, errors
+    return layouts
+
+
+def check(browser, base):
+    errors = []
     context = browser.new_context(
         viewport={"width": 1440, "height": 1000}, reduced_motion="reduce"
     )
@@ -165,7 +319,7 @@ def check(browser, base):
         == "Synced profile name"
     )
     page.keyboard.press("Escape")
-    page.locator('nav a[data-view="authenticators"]').click()
+    nav(page, "authenticators")
     page.locator("#add-button").click()
     page.locator("#item-name").fill("KagNode QA account")
     page.locator("#item-username").fill("example@example.test")
@@ -219,7 +373,8 @@ def check(browser, base):
     page.locator(".backup-summary").filter(
         has_text="1 of 2 backup codes available"
     ).wait_for()
-    page.locator('nav a[data-view="settings"]').click()
+    page.locator(".vault-tools").evaluate("e=>e.open=true")
+    nav(page, "settings")
     page.wait_for_url("**/settings")
     page.go_back()
     page.wait_for_url("**/authenticators")
@@ -246,7 +401,7 @@ def check(browser, base):
     page.get_by_text("0 items restored; 1 already present.", exact=True).wait_for()
     backup.unlink()  # Even synthetic encrypted vaults do not belong in artifacts.
 
-    page.locator('nav a[data-view="backup-codes"]').click()
+    nav(page, "backup-codes")
     page.wait_for_url("**/backup-codes")
     page.locator("#add-button").click()
     assert page.locator("#type-backup").get_attribute("aria-pressed") == "true"
@@ -284,10 +439,11 @@ def check(browser, base):
     page.locator(".item-card").filter(has_text="Recovery-only example").locator(
         ".backup-summary"
     ).filter(has_text="0 of 2").wait_for()
-    page.locator('nav a[data-view="settings"]').click()
+    page.locator(".vault-tools").evaluate("e=>e.open=true")
+    nav(page, "settings")
 
     # New Passwords features use the real disposable encrypted vault.
-    page.locator('nav a[data-view="notes"]').click()
+    nav(page, "notes")
     page.locator("#add-button").click()
     assert page.locator("#type-note").get_attribute("aria-pressed") == "true"
     page.locator("#item-name").fill("Private test note")
@@ -299,12 +455,12 @@ def check(browser, base):
     page.locator("#detail-delete").click()
     page.get_by_role("button", name="Move to Trash", exact=True).click()
     page.locator("#utility-dialog").wait_for(state="hidden")
-    page.locator('nav a[data-view="trash"]').click()
+    nav(page, "trash")
     page.get_by_role("button", name="Restore", exact=True).click()
     page.get_by_text("Trash is empty.", exact=True).wait_for()
-    page.locator('nav a[data-view="notes"]').click()
+    nav(page, "notes")
     page.locator(".item-title").filter(has_text="Private test note").wait_for()
-    page.locator('nav a[data-view="clients"]').click()
+    nav(page, "clients")
     page.locator("#export-bitwarden").click()
     page.locator("#export-password").fill(PASSWORD)
     with page.expect_download() as exported:
@@ -324,7 +480,8 @@ def check(browser, base):
             path=str(ARTIFACTS / f"passwords-clients-{width}.png"), full_page=True
         )
     page.set_viewport_size({"width": 1440, "height": 1000})
-    page.locator('nav a[data-view="settings"]').click()
+    page.locator(".vault-tools").evaluate("e=>e.open=true")
+    nav(page, "settings")
 
     # Exercise the shared update controls without running a privileged updater.
     update_calls = []
@@ -524,7 +681,8 @@ def check(browser, base):
     identifier = page.locator(".item-card").first.get_attribute("data-id")
     assert other.request.get(base + "/api/items/" + identifier).status == 404
     other.locator("#mobile-menu").click()
-    other.locator('nav a[data-view="settings"]').click()
+    other.locator(".vault-tools").evaluate("e=>e.open=true")
+    nav(other, "settings")
     assert other.locator("#account-email").inner_text() == "second@browser.test"
     other.get_by_role("combobox", name="Automatic lock timeout", exact=True).click()
     other.get_by_role("option", name="30 minutes", exact=True).click()
@@ -566,6 +724,7 @@ def check(browser, base):
     second.close()
     context.close()
     assert not errors, errors
+    layouts = check_layouts(browser, base)
     result = {
         "layouts": layouts,
         "page_errors": errors,
@@ -628,7 +787,6 @@ def main():
                     str(port),
                     "--data-dir",
                     data,
-                    "--preview",
                 ],
                 cwd=ROOT,
                 env=env,

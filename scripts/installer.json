@@ -1,0 +1,72 @@
+{
+  "platforms": [
+    [
+      "ubuntu",
+      "24.04"
+    ],
+    [
+      "debian",
+      "12"
+    ],
+    [
+      "debian",
+      "13"
+    ]
+  ],
+  "architectures": [
+    "x86_64",
+    "aarch64"
+  ],
+  "required_paths": [
+    "data"
+  ],
+  "dependencies": [
+    "systemctl",
+    "python3",
+    "useradd",
+    "runuser"
+  ],
+  "warnings": [
+    "Only the listed application or native setup is performed. Existing data is never reset.",
+    "Setup requires local administrator review; source/data package installation alone does not start services."
+  ],
+  "kind": "application",
+  "user": "kagnode-authenticator",
+  "fields": [
+    {
+      "key": "port",
+      "label": "Loopback web port",
+      "type": "integer",
+      "required": false,
+      "secret": false,
+      "default": 8092
+    },
+    {
+      "key": "trusted_proxy",
+      "label": "Trusted reverse proxy IP (optional)",
+      "type": "string",
+      "required": false,
+      "secret": false,
+      "default": ""
+    }
+  ],
+  "paths": {
+    "code": "/opt/kagnode-authenticator",
+    "configuration": "/etc/kagnode/passwords.env",
+    "data": "/var/lib/authentactor",
+    "unit": "/etc/systemd/system/kagnode-authenticator.service"
+  },
+  "units": [
+    "kagnode-authenticator"
+  ],
+  "health_path": "/api/status",
+  "health_key": "initialized",
+  "health_scope": "Loopback vault web application. Administrator creates its encrypted vault in the browser; no existing vault is imported.",
+  "changes": [
+    "Create a dedicated service identity, fresh code/venv and private data directory",
+    "Install the project Python requirements and loopback web unit",
+    "Start the web service; configure public HTTPS separately"
+  ],
+  "project": "passwords",
+  "version": "5.0.2"
+}

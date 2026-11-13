@@ -1,3 +1,9 @@
+# 5.0.2
+
+- Updated the reviewed Core interface and account-scoped update notice integration where supported.
+- Added project-owned setup plan, review, apply, health and recovery interfaces; existing native installers retain their own boundaries.
+- Replaced the overview/demo layout with a searchable vault list, folder/type filters and contextual details; encryption and data formats are unchanged.
+
 # 5.0.1
 
 - Return Login with KagNode to the initiating application through a browser-bound S256 PKCE callback.

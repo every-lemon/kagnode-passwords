@@ -10,7 +10,7 @@ Independent email-based accounts with encrypted authenticator vaults and backup 
 
 ## Release status
 
-Product source: **5.0.1**. Stable source/data release: **5.0.1**.
+Product source: **5.0.2**. Stable source/data release: **5.0.2**.
 
 KagNode 5 uses the same locally served Core login frame and action icons across applications. Existing local sign-in, explicit KagNode connection, profile-sync policy, local roles and storage formats are preserved. A KagNode identity does not decrypt a vault; the master password and existing vault encryption remain required.
 
@@ -19,6 +19,8 @@ Earlier packaging prereleases remain available. The 5.0 stable release is limite
 Browser sign-in now returns from KagNode to this application in the same tab, using a one-use authorization code with S256 PKCE. Local email/username forms reveal the password step after identity entry; vault setup, MFA and key-only controls preserve their existing requirements. See [account sign-in](docs/ACCOUNT-SYNC.md).
 
 ## Features
+
+The vault now uses a searchable list with folder/type filters and contextual details. Production demo data and duplicate overview shortcuts have been removed; existing encrypted vaults and recovery workflows are retained.
 
 - Shared local sign-in and explicit Login with KagNode; local access and security requirements stay available. See [account sign-in](docs/ACCOUNT-SYNC.md).
 
@@ -84,6 +86,8 @@ python3 scripts/release.py --output dist/packages
 Install the formatting dependencies from `requirements-format.txt`. Package building additionally needs `dpkg-deb`, `rpmbuild`, XZ support and, for CLI binaries, Go. Read [the repository map](docs/STRUCTURE.md) before editing generated files.
 
 ## Documentation
+
+- [Reviewed local setup](docs/INSTALLER.md)
 
 - [Passwords and Bitwarden clients](docs/PASSWORDS.md)
 - [Ecosystem installation and updates](docs/ECOSYSTEM.md)
