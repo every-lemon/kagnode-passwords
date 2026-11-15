@@ -1,5 +1,8 @@
 name: Managed vault interoperability
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
 permissions:
   contents: read
 jobs:
@@ -7,8 +10,6 @@ jobs:
     name: Managed vault (${{ matrix.engine }})
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    env:
-      TMPDIR: ${{ runner.temp }}
     strategy:
       fail-fast: false
       matrix:
@@ -30,6 +31,7 @@ jobs:
       - name: Isolated migration, emergency and browser journeys
         run: python -m pytest -q tests/test_vault_keys.py tests/test_vault_keys_native.py tests/test_managed_vault_routes.py tests/test_managed_browser.py
         env:
+          TMPDIR: ${{ runner.temp }}
           KAGNODE_VAULT_KEYS_BINARY: ${{ github.workspace }}/key-service/target/debug/kagnode-vault-keys
           KAGNODE_MANAGED_BROWSER: '1'
           KAGNODE_BROWSER_ENGINE: ${{ matrix.engine }}
