@@ -176,6 +176,38 @@ function closeDialogs() {
   window.KagNodeControls?.close();
   document.querySelectorAll("dialog[open]").forEach((d) => d.close());
 }
+function updateLocalIdentity(email = "") {
+  const initial = (email || "?").charAt(0).toUpperCase();
+  // Core may move the account button into its footer. Update the visual child,
+  // never the button itself: Core owns its label, chevron and menu semantics.
+  document.querySelectorAll("[data-kn-account-avatar]").forEach((avatar) => {
+    let visual = avatar.querySelector("[data-vault-avatar-initials]");
+    if (!visual) {
+      visual = document.createElement("span");
+      visual.dataset.vaultAvatarInitials = "";
+      visual.className = "avatar";
+      visual.setAttribute("aria-hidden", "true");
+      avatar.prepend(visual);
+    }
+    if (visual.textContent !== initial) visual.textContent = initial;
+    avatar.dataset.knLocalInitials = initial;
+    avatar.title = email || "Account settings";
+    if (!email) {
+      avatar
+        .querySelectorAll(".kn-linked-avatar")
+        .forEach((photo) => photo.remove());
+      avatar.classList.remove("kn-has-linked-photo");
+    }
+  });
+  document.querySelectorAll("[data-kn-account-name]").forEach((name) => {
+    name.dataset.knLocalName = email || "Account";
+    if (name.textContent !== (email || "Account"))
+      name.textContent = email || "Account";
+  });
+}
+document.addEventListener("kagnode:core-ready", () =>
+  updateLocalIdentity(state.unlocked ? state.account?.email : ""),
+);
 function clearSensitive() {
   state.items = [];
   state.csrf = null;
@@ -190,7 +222,7 @@ function clearSensitive() {
   $("generated-password").textContent = "";
   $("account-email").textContent = "";
   $("vault-subtitle").textContent = "";
-  document.querySelector(".topbar .avatar").textContent = "?";
+  updateLocalIdentity();
   $("item-form").reset();
   $("master-password").value = "";
   $("confirm-password").value = "";
@@ -331,6 +363,7 @@ async function showDashboard() {
     authenticated: true,
     subject: state.account?.email || "",
     name: state.account?.email || "",
+    email: state.account?.email || "",
   });
   state.lastInput = Date.now();
   state.lastActivity = 0;
@@ -343,10 +376,7 @@ async function showDashboard() {
   $("sync-label").textContent = "Vault unlocked";
   $("vault-subtitle").textContent = state.account?.email || "Your vault";
   $("account-email").textContent = state.account?.email || "";
-  const avatar = document.querySelector(".topbar .avatar");
-  avatar.textContent = (state.account?.email || "?").charAt(0).toUpperCase();
-  avatar.title = state.account?.email || "Account settings";
-  avatar.setAttribute("aria-label", "Account settings");
+  updateLocalIdentity(state.account?.email);
   navigate(returnView, { history: "replace" });
   try {
     await refreshItems();

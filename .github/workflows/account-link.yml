@@ -31,3 +31,7 @@ jobs:
         run: python tests/browser_provider.py
         env:
           KAGNODE_BROWSER_ENGINE: ${{ matrix.engine }}
+      - name: Avatar relocation and lock lifecycle
+        run: python tests/browser_avatar.py
+        env:
+          KAGNODE_BROWSER_ENGINE: ${{ matrix.engine }}

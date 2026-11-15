@@ -1,3 +1,7 @@
+# Unreleased
+
+- Keep vault sign-in and locking working when Core relocates the account avatar into the sidebar, or mounts it later. Preserve shared account-menu controls and clear old identity/photo state when locking.
+
 # 5.0.3
 
 - Add explicit Link existing / Create account choices without email-only merging.
