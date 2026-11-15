@@ -46,6 +46,7 @@ class AccountSignIns:
                 ("state_hash", ""),
                 ("verifier", ""),
                 ("failure", ""),
+                ("vault_key", ""),
             ]:
                 if name not in columns:
                     db.execute(
@@ -246,7 +247,12 @@ class AccountSignIns:
             raise
 
     def start_browser(
-        self, browser, installation, callback_path="/auth/kagnode/callback"
+        self,
+        browser,
+        installation,
+        callback_path="/auth/kagnode/callback",
+        *,
+        vault_key="",
     ):
         """Start a confidential-server S256 flow; no code or verifier reaches JS."""
         enabled, generation = self.profiles.enabled()
@@ -260,6 +266,11 @@ class AccountSignIns:
         ):
             raise AccountLinkError("Invalid sign-in callback configuration.", 500)
         browser_key = self.browser_key(browser)
+        if vault_key and (
+            self.profiles.client != "kagnode-authenticator"
+            or not re.fullmatch(r"[A-Za-z0-9_-]{43}", vault_key)
+        ):
+            raise AccountLinkError("Invalid vault sign-in configuration.", 500)
         self.cleanup()
         attempt, nonce, state, verifier = (secrets.token_urlsafe(32) for _ in range(4))
         redirect_uri = installation + callback_path
@@ -278,7 +289,7 @@ class AccountSignIns:
             if db.execute("SELECT COUNT(*) FROM sign_in_attempts").fetchone()[0] >= 128:
                 raise AccountLinkError("Sign-in is busy. Try again later.", 429)
             db.execute(
-                "INSERT INTO sign_in_attempts(id,browser,nonce,installation,started,expires,generation,status,flow,redirect_uri,state_hash,verifier) VALUES(?,?,?,?,?,?,?,'starting','browser',?,?,?)",
+                "INSERT INTO sign_in_attempts(id,browser,nonce,installation,started,expires,generation,status,flow,redirect_uri,state_hash,verifier,vault_key) VALUES(?,?,?,?,?,?,?,'starting','browser',?,?,?,?)",
                 (
                     attempt,
                     browser_key,
@@ -290,6 +301,7 @@ class AccountSignIns:
                     redirect_uri,
                     hashlib.sha256(state.encode()).hexdigest(),
                     verifier,
+                    vault_key,
                 ),
             )
         for row in previous:
@@ -303,7 +315,9 @@ class AccountSignIns:
                     "client_id": self.profiles.client,
                     "installation": installation,
                     "redirect_uri": redirect_uri,
-                    "scope": "profile.read email.read",
+                    "scope": "profile.read email.read"
+                    + (" vault.unlock" if vault_key else ""),
+                    **({"vault_public_key": vault_key} if vault_key else {}),
                     "purpose": "sign_in",
                     "nonce": nonce,
                     "state": state,
@@ -505,6 +519,12 @@ class AccountSignIns:
                     "KagNode returned an invalid sign-in token response.", 502
                 )
         scopes = str(value.get("scope", "")).split()
+        if row["vault_key"] and (
+            "vault.unlock" not in scopes or now - proof["auth_time"] > 300
+        ):
+            raise AccountLinkError(
+                "Recent vault-unlock consent is required. Start again.", 403
+            )
         if "profile.read" not in scopes:
             raise AccountLinkError(
                 "KagNode did not grant the requested identity access.", 502

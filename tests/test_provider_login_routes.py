@@ -62,12 +62,13 @@ def test_new_provider_account_requires_explicit_master_password(fixture):
     app, client, fake = fixture
     headers, attempt, result = confirm(client)
     assert result.status_code == 200, result.json
-    assert result.json["continuation"] == "setup"
+    assert result.json["continuation"] == "choose"
     assert not client.get("/api/status").json["unlocked"]
     bad = client.post(
         "/api/setup",
         json={
             "provider_attempt": attempt,
+            "provider_intent": "create",
             "email": "fictional@example.test",
             "password": "short",
         },
@@ -78,6 +79,7 @@ def test_new_provider_account_requires_explicit_master_password(fixture):
         "/api/setup",
         json={
             "provider_attempt": attempt,
+            "provider_intent": "create",
             "email": "fictional@example.test",
             "password": PASSWORD,
         },
@@ -163,7 +165,7 @@ def test_same_email_is_not_automatic_account_link(fixture):
         "/api/lock", json={}, headers={**HEADERS, "X-CSRF-Token": created.json["csrf"]}
     )
     _, _, result = confirm(client)
-    assert result.status_code == 409 and "explicitly link" in result.json["error"]
+    assert result.status_code == 200 and result.json["continuation"] == "choose"
     assert not client.get("/api/status").json["unlocked"]
     with app.extensions["kagnode_account"].db() as db:
         assert db.execute("SELECT COUNT(*) FROM links").fetchone()[0] == 0

@@ -35,8 +35,10 @@ from flask import (
 )
 from werkzeug.exceptions import HTTPException
 from .storage import email_address, initialize_database
+from .managed_vault import ManagedVaults
+from .vault_keys import VaultKeys, wrap_emergency
 
-VERSION = "5.0.2"
+VERSION = "5.0.3"
 KDF = {"name": "scrypt", "n": 32768, "r": 8, "p": 1}
 COOKIE = "authentactor_session"
 PAGE_PATHS = (
@@ -443,6 +445,7 @@ def create_app(data_dir, preview=False, legacy_email=None):
         return db
 
     initialize_database(db_path, legacy_email)
+    managed_vaults = ManagedVaults(db_path)
     os.chmod(db_path, 0o600)
 
     def any_accounts():
@@ -491,9 +494,13 @@ def create_app(data_dir, preview=False, legacy_email=None):
             )
             # Preserve the original table, and mirror only its mapped owner's
             # legitimate changes so an emergency legacy rollback retains them.
-            if db.execute(
-                "SELECT 1 FROM legacy_vault_owners WHERE account_id=?", (account_id,)
-            ).fetchone():
+            if (
+                not managed_vaults.get(account_id)
+                and db.execute(
+                    "SELECT 1 FROM legacy_vault_owners WHERE account_id=?",
+                    (account_id,),
+                ).fetchone()
+            ):
                 db.execute(
                     "UPDATE vault SET salt=?,payload=? WHERE id=1", (new_salt, payload)
                 )
@@ -520,6 +527,13 @@ def create_app(data_dir, preview=False, legacy_email=None):
             token = request.cookies.get(COOKIE, "")
             state = sessions.get(token)
             if state:
+                if state.get("provider_stamp") and (
+                    not account_signins.enabled()
+                    or profile_links.stamp(state["account_id"])
+                    != state["provider_stamp"]
+                ):
+                    sessions.pop(token, None)
+                    return None
                 with connect() as db:
                     current = db.execute(
                         "SELECT secret_version FROM accounts WHERE id=?",
@@ -545,7 +559,7 @@ def create_app(data_dir, preview=False, legacy_email=None):
 
         return inner
 
-    def new_session(key, vault, account_id):
+    def new_session(key, vault, account_id, *, provider=False):
         cleanup_sessions()
         with connect() as db:
             email, version = db.execute(
@@ -573,6 +587,7 @@ def create_app(data_dir, preview=False, legacy_email=None):
             "active": time.time(),
             "created": time.time(),
             "timeout": vault["settings"]["auto_lock"],
+            "provider_stamp": profile_links.stamp(account_id) if provider else "",
         }
         response = jsonify(
             ok=True, csrf=csrf, settings=vault["settings"], account={"email": email}
@@ -715,6 +730,55 @@ def create_app(data_dir, preview=False, legacy_email=None):
             except AccountLinkError as error:
                 raise VaultError(str(error), error.status)
 
+    def password_vault_key(account_id, password_key):
+        try:
+            return managed_vaults.emergency(account_id, password_key)
+        except (InvalidToken, ValueError):
+            raise VaultError("Incorrect email or password.", 401) from None
+
+    def enroll_provider(body, provider, identifier, key, password_key):
+        if body.get("managed_unlock") is not True:
+            return
+        if not provider or not managed_enabled:
+            raise VaultError(
+                "Start KagNode sign-in before enabling managed unlock.", 409
+            )
+        attempt = account_signins.row(login_browser(), str(body["provider_attempt"]))
+        if not attempt["vault_key"] or attempt["vault_key"] != vault_keys().public:
+            raise VaultError("Start a fresh KagNode vault-unlock sign-in.", 409)
+        with profile_links.db() as db:
+            conflicts = db.execute(
+                "SELECT local_id,subject FROM links WHERE local_id=? OR subject=?",
+                (identifier, provider["profile"]["subject"]),
+            ).fetchall()
+        if any(
+            r["local_id"] != identifier
+            or r["subject"] != provider["profile"]["subject"]
+            for r in conflicts
+        ):
+            raise VaultError(
+                "Disconnect the existing account link before linking another identity.",
+                409,
+            )
+        identity = {
+            "issuer": profile_links.issuer,
+            "subject": provider["profile"]["subject"],
+            "installation": attempt["installation"],
+            "public_key": attempt["vault_key"],
+        }
+        try:
+            prior = managed_vaults.prepare(identifier, identity, key, password_key)
+            tokens = json.loads(attempt["tokens"])
+            receipt = vault_keys().execute(
+                "enroll", identifier, prior["revision"], tokens["access_token"], key
+            )
+            managed_vaults.activate(identifier, prior, receipt)
+        except (AccountLinkError, OSError, ValueError):
+            raise VaultError(
+                "Managed unlock could not be enabled. Your vault and emergency password remain available. Start KagNode sign-in again to retry.",
+                503,
+            ) from None
+
     @app.get("/api/status")
     def status():
         state = session_state()
@@ -727,7 +791,7 @@ def create_app(data_dir, preview=False, legacy_email=None):
             csrf=state["csrf"] if state else login_csrf(browser),
             settings={"auto_lock": state["timeout"]} if state else None,
             account={"email": state["email"]} if state else None,
-            registration=True,
+            registration=os.environ.get("KAGNODE_PASSWORDS_SIGNUP", "1") != "0",
             provider_issuer=profile_links.issuer,
             provider_enabled=account_signins.enabled(),
             preview=preview,
@@ -747,6 +811,8 @@ def create_app(data_dir, preview=False, legacy_email=None):
 
     @app.post("/api/setup")
     def setup():
+        if os.environ.get("KAGNODE_PASSWORDS_SIGNUP", "1") == "0":
+            raise VaultError("Account creation is disabled for this installation.", 403)
         body = json_body()
         provider = provider_identity(body)
         if provider and (
@@ -755,6 +821,10 @@ def create_app(data_dir, preview=False, legacy_email=None):
             raise VaultError(
                 "Sign in to your existing vault, or verify your KagNode email before creating one.",
                 409,
+            )
+        if provider and body.get("provider_intent") != "create":
+            raise VaultError(
+                "Choose Create account or Link existing account first.", 409
             )
         try:
             email = email_address(body.get("email"))
@@ -796,13 +866,14 @@ def create_app(data_dir, preview=False, legacy_email=None):
                         "INSERT INTO accounts(id,email,salt,payload,created) VALUES(?,?,?,?,?)",
                         (identifier, email, salt, payload, int(now)),
                     )
-                    finish_provider(body, identifier)
             except sqlite3.IntegrityError:
                 raise VaultError(
                     "Unable to create this account. Try signing in, or use another email.",
                     409,
                 )
-            return new_session(key, vault, identifier)
+            enroll_provider(body, provider, identifier, key, key)
+            finish_provider(body, identifier)
+            return new_session(key, vault, identifier, provider=bool(provider))
 
     @app.post("/api/unlock")
     def unlock():
@@ -835,21 +906,31 @@ def create_app(data_dir, preview=False, legacy_email=None):
                     "SELECT id,salt FROM accounts WHERE email=?", (email,)
                 ).fetchone()
             # Unknown emails still pay the same password-derivation cost.
-            key = derive_key(password, account[1] if account else b"unknown-account!")
+            password_key = derive_key(
+                password, account[1] if account else b"unknown-account!"
+            )
             try:
                 if not account or (
                     provider
-                    and (not provider["local_id"] or provider["local_id"] != account[0])
+                    and (
+                        (provider["local_id"] and provider["local_id"] != account[0])
+                        or (
+                            not provider["local_id"]
+                            and body.get("provider_intent") != "link"
+                        )
+                    )
                 ):
                     raise VaultError("Incorrect email or password.", 401)
+                key = password_vault_key(account[0], password_key)
                 vault = read_vault(key, account[0])
             except VaultError:
                 for bucket in ("global", "ip:" + request.remote_addr, email_bucket):
                     failures[bucket].append(now)
                 raise
+            enroll_provider(body, provider, account[0], key, password_key)
             finish_provider(body, account[0])
             failures.pop(email_bucket, None)
-            return new_session(key, vault, account[0])
+            return new_session(key, vault, account[0], provider=bool(provider))
 
     @app.post("/api/lock")
     @authenticated
@@ -1092,7 +1173,10 @@ def create_app(data_dir, preview=False, legacy_email=None):
         with mutex:
             salt, _ = row(g.vault_session["account_id"])
             if not secrets.compare_digest(
-                derive_key(password, salt), g.vault_session["key"]
+                password_vault_key(
+                    g.vault_session["account_id"], derive_key(password, salt)
+                ),
+                g.vault_session["key"],
             ):
                 raise VaultError("Current master password is incorrect.", 403)
             vault = read_vault(g.vault_session["key"], g.vault_session["account_id"])
@@ -1175,15 +1259,19 @@ def create_app(data_dir, preview=False, legacy_email=None):
     def backup():
         with mutex:
             salt, payload = row(g.vault_session["account_id"])
+            managed = managed_vaults.get(g.vault_session["account_id"])
         response = jsonify(
-            format="authentactor-encrypted-v1",
-            version=1,
+            format="kagnode-passwords-encrypted-v2"
+            if managed
+            else "authentactor-encrypted-v1",
+            version=2 if managed else 1,
             kdf=KDF,
             salt=base64.b64encode(salt).decode(),
             payload=payload.decode(),
+            **({"wrapped_key": managed["wrapped_key"].decode()} if managed else {}),
         )
         response.headers["Content-Disposition"] = (
-            'attachment; filename="kagnode-authenticator-encrypted-backup.json"'
+            'attachment; filename="kagnode-passwords-encrypted-backup.json"'
         )
         return response
 
@@ -1197,7 +1285,8 @@ def create_app(data_dir, preview=False, legacy_email=None):
             if (
                 not isinstance(password, str)
                 or len(password) > 1024
-                or backup["format"] != "authentactor-encrypted-v1"
+                or backup["format"]
+                not in ("authentactor-encrypted-v1", "kagnode-passwords-encrypted-v2")
                 or backup["kdf"] != KDF
             ):
                 raise ValueError()
@@ -1208,8 +1297,20 @@ def create_app(data_dir, preview=False, legacy_email=None):
             salt = base64.b64decode(backup["salt"], validate=True)
             if len(salt) != 16:
                 raise ValueError()
+            backup_key = derive_key(password, salt)
+            if backup["format"] == "kagnode-passwords-encrypted-v2":
+                from .vault_keys import unwrap_emergency
+
+                if (
+                    not isinstance(backup.get("wrapped_key"), str)
+                    or len(backup["wrapped_key"]) > 1024
+                ):
+                    raise ValueError()
+                backup_key = unwrap_emergency(
+                    backup_key, backup["wrapped_key"].encode()
+                )
             imported = json.loads(
-                Fernet(derive_key(password, salt)).decrypt(backup["payload"].encode())
+                Fernet(backup_key).decrypt(backup["payload"].encode())
             )
             if not isinstance(imported["items"], list) or len(imported["items"]) > 1000:
                 raise ValueError()
@@ -1256,14 +1357,32 @@ def create_app(data_dir, preview=False, legacy_email=None):
             raise VaultError("Use a new master password of at least 12 characters.")
         with mutex:
             salt, _ = row(g.vault_session["account_id"])
-            old_key = derive_key(old, salt)
+            old_key = password_vault_key(
+                g.vault_session["account_id"], derive_key(old, salt)
+            )
             if not secrets.compare_digest(old_key, g.vault_session["key"]):
                 raise VaultError("Current master password is incorrect.", 400)
             vault = read_vault(old_key, g.vault_session["account_id"])
             salt = secrets.token_bytes(16)
-            key = derive_key(new, salt)
             account_id = g.vault_session["account_id"]
-            write_vault(vault, key, account_id, salt)
+            password_key = derive_key(new, salt)
+            if managed_vaults.get(account_id):
+                key = old_key
+                with connect() as db:
+                    db.execute("BEGIN IMMEDIATE")
+                    changed = db.execute(
+                        "UPDATE accounts SET salt=?,secret_version=secret_version+1 WHERE id=? AND secret_version=?",
+                        (salt, account_id, g.vault_session["secret_version"]),
+                    ).rowcount
+                    if changed != 1:
+                        raise VaultError("Your vault changed. Unlock again.", 409)
+                    db.execute(
+                        "UPDATE managed_vaults SET wrapped_key=? WHERE account_id=?",
+                        (wrap_emergency(key, password_key), account_id),
+                    )
+            else:
+                key = password_key
+                write_vault(vault, key, account_id, salt)
             for token, state in list(sessions.items()):
                 if state["account_id"] == account_id:
                     sessions.pop(token, None)
@@ -1277,6 +1396,28 @@ def create_app(data_dir, preview=False, legacy_email=None):
 
     account_signins = AccountSignIns(profile_links)
     app.extensions["kagnode_signins"] = account_signins
+    managed_enabled = os.environ.get("KAGNODE_PASSWORDS_MANAGED_UNLOCK", "0") == "1"
+    key_client = None
+
+    def vault_keys():
+        nonlocal key_client
+        if not managed_enabled:
+            raise VaultError(
+                "Managed unlock is disabled. Use your emergency password.", 403
+            )
+        if "kagnode_vault_keys" in app.extensions:
+            return app.extensions["kagnode_vault_keys"]
+        if key_client is None:
+            with connect() as db:
+                has_enrollments = bool(
+                    db.execute("SELECT 1 FROM managed_vaults LIMIT 1").fetchone()
+                )
+            key_client = VaultKeys(
+                directory / "vault-key-installation",
+                profile_links,
+                allow_create=not has_enrollments,
+            )
+        return key_client
 
     @app.get("/auth/kagnode/callback")
     def kagnode_callback():
@@ -1322,8 +1463,18 @@ def create_app(data_dir, preview=False, legacy_email=None):
                             "Too many sign-in requests. Try again later.", 429
                         )
                     bucket.append(now)
+                public_key = ""
+                if managed_enabled:
+                    try:
+                        capability = profile_links.transport(
+                            "GET", "vault/capabilities"
+                        )
+                        if capability.get("enabled") is True:
+                            public_key = vault_keys().public
+                    except (AccountLinkError, OSError, ValueError):
+                        pass  # Local sign-in and profile linking remain available.
                 result = account_signins.start_browser(
-                    browser, request.host_url.rstrip("/")
+                    browser, request.host_url.rstrip("/"), vault_key=public_key
                 )
             elif action == "cancel":
                 result = account_signins.cancel(browser, attempt)
@@ -1331,6 +1482,8 @@ def create_app(data_dir, preview=False, legacy_email=None):
                 result = account_signins.status(browser, attempt)
                 if result.get("authorized"):
                     identity = account_signins.verified(browser, attempt)
+                    attempt_row = account_signins.row(browser, attempt)
+                    can_manage = bool(managed_enabled and attempt_row["vault_key"])
                     if identity["local_id"]:
                         with connect() as connection:
                             local = connection.execute(
@@ -1343,7 +1496,54 @@ def create_app(data_dir, preview=False, legacy_email=None):
                                 "The linked vault is unavailable. Sign in locally for help.",
                                 403,
                             )
-                        result.update(continuation="unlock", email=local[0])
+                        managed = managed_vaults.get(identity["local_id"])
+                        if can_manage and managed and managed["phase"] == "active":
+                            if any(
+                                managed[k] != v
+                                for k, v in {
+                                    "issuer": profile_links.issuer,
+                                    "subject": identity["profile"]["subject"],
+                                    "installation": attempt_row["installation"],
+                                    "public_key": attempt_row["vault_key"],
+                                }.items()
+                            ):
+                                raise VaultError(
+                                    "This connection differs from the enrolled vault. Use emergency access to review it.",
+                                    409,
+                                )
+                            try:
+                                key = vault_keys().execute(
+                                    "unlock",
+                                    identity["local_id"],
+                                    managed["revision"],
+                                    json.loads(attempt_row["tokens"])["access_token"],
+                                    identity={
+                                        "subject": identity["profile"]["subject"],
+                                        "installation": attempt_row["installation"],
+                                    },
+                                )
+                                vault = read_vault(key, identity["local_id"])
+                                account_signins.finish(
+                                    browser, attempt, identity["local_id"]
+                                )
+                                response = new_session(
+                                    key, vault, identity["local_id"], provider=True
+                                )
+                                data = response.get_json()
+                                data.update(continuation="unlocked", authorized=True)
+                                response.set_data(app.json.dumps(data))
+                                return response
+                            except (AccountLinkError, OSError, ValueError):
+                                raise VaultError(
+                                    "KagNode unlock is unavailable. Use your emergency password, or start again.",
+                                    503,
+                                ) from None
+                        result.update(
+                            continuation="unlock",
+                            email=local[0],
+                            managed_available=can_manage,
+                            migration=bool(can_manage),
+                        )
                     else:
                         email = identity["profile"].get("email", "")
                         if not email:
@@ -1351,17 +1551,13 @@ def create_app(data_dir, preview=False, legacy_email=None):
                                 "Verify your KagNode email before creating a vault, or sign in locally to link an existing vault.",
                                 409,
                             )
-                        with connect() as connection:
-                            collision = connection.execute(
-                                "SELECT id FROM accounts WHERE email=?",
-                                (email.lower(),),
-                            ).fetchone()
-                        if collision:
-                            raise VaultError(
-                                "This email already has a local vault. Sign in locally and explicitly link it in Settings.",
-                                409,
-                            )
-                        result.update(continuation="setup", email=email)
+                        result.update(
+                            continuation="choose",
+                            email=email,
+                            managed_available=can_manage,
+                            can_create=os.environ.get("KAGNODE_PASSWORDS_SIGNUP", "1")
+                            != "0",
+                        )
             else:
                 raise VaultError("Invalid sign-in action.")
             return jsonify(result)

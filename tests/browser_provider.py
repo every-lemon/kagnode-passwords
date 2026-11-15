@@ -531,6 +531,14 @@ try:
                 expect(provider).to_be_enabled()
             provider.click()
             approve()
+            if (
+                args.product == "passwords"
+                and page.locator("#provider-choice").is_visible()
+            ):
+                page.get_by_role(
+                    "button", name="Link existing account", exact=True
+                ).click()
+                email.fill("local@example.test")
             if args.product == "mail" and not email.evaluate("e=>e.readOnly"):
                 email.fill("local@example.test")
             advance()
