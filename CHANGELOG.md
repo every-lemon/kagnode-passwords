@@ -1,3 +1,12 @@
+# 5.0.3
+
+- Add explicit Link existing / Create account choices without email-only merging.
+- Add an optional Rust private-socket key service, fresh installation-bound consent and encrypted key delivery.
+- Preserve existing vault ciphertext during enrollment, retain emergency access and reconcile uncertain enrollments.
+- Add version-2 encrypted emergency backups for enrolled vaults; import both formats and rewrap emergency passwords without losing managed access.
+- Refresh canonical Core login presentation and clear stale progressive state when changing account paths.
+- Keep existing package identities, service paths and local-only behavior; issuer setup and explicit user enrollment are required for managed unlock.
+
 # 5.0.2
 
 - Updated the reviewed Core interface and account-scoped update notice integration where supported.

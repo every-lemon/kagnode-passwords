@@ -1,0 +1,34 @@
+[Unit]
+Description=KagNode trusted vault-key service
+After=local-fs.target
+
+[Service]
+User=kagnode-vault-keys
+Group=kagnode-vault-keys
+UMask=0077
+StateDirectory=kagnode-vault-keys
+StateDirectoryMode=0700
+RuntimeDirectory=kagnode-vault-keys
+RuntimeDirectoryMode=0750
+ExecStart=/usr/libexec/kagnode-vault-keys --database /var/lib/kagnode-vault-keys/keys.sqlite --wrapping-key /etc/kagnode-vault-keys/wrapping.key --authority-key /etc/kagnode-vault-keys/authority.key --socket /run/kagnode-vault-keys/service.sock
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateNetwork=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX
+LockPersonality=yes
+RestrictSUIDSGID=yes
+CapabilityBoundingSet=
+LimitCORE=0
+MemoryMax=192M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

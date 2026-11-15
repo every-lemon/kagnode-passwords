@@ -21,3 +21,5 @@ the Notes, Trash and Apps & extensions views. `ecosystem_updates.py` is only a
 local Unix-socket client, not a privileged updater.
 
 The shared login frame is generated from the pinned Core template. Edit `web/login-content.html`, `web/login-provider.html` and `web/login.json` for local form behavior; run `scripts/build-login.py` or the normal web build. The frame and field styling remain owned by Core. `scripts/repository_check.py` rejects a stale generated login frame.
+
+Managed unlock is isolated in `authentactor/managed_vault.py` (additive local journal), `authentactor/vault_keys.py` (private installation client and emergency wrapping), and `key-service/` (Rust issuer-side engine/private socket). See [managed unlock](MANAGED-UNLOCK.md) for trust, installation and v2 backup boundaries.

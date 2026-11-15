@@ -58,7 +58,16 @@ def initialize_database(path, legacy_email=None):
                 raise ValueError(
                     "Existing vault ownership differs from --legacy-email. No ownership was changed."
                 )
-            if not legacy or tuple(account[1:]) != tuple(legacy):
+            managed_table = db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='managed_vaults'"
+            ).fetchone()
+            managed = (
+                managed_table
+                and db.execute(
+                    "SELECT 1 FROM managed_vaults WHERE account_id=?", mapping
+                ).fetchone()
+            )
+            if not managed and (not legacy or tuple(account[1:]) != tuple(legacy)):
                 raise ValueError(
                     "Legacy and account vault contents differ. Review the preserved database and backups before continuing; neither copy was overwritten."
                 )

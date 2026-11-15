@@ -8,7 +8,7 @@ Set KAGNODE_ACCOUNT_SYNC=off in the server's process environment to enforce disa
 
 Local applications store refresh credentials only in private server-side storage. The browser receives profile data and a user code, never a KagNode access/refresh token. Polling is bounded, refreshes are serialized, profile refresh occurs at most once per fifteen minutes per link, and offline errors keep local accounts available. Only still WebP profile photos are accepted by the connection UI.
 
-Mail administrators use the existing local administrator confirmation. Authenticator assigns profile-sync administration to the retained legacy vault owner, or the first local account when there is no migrated owner; KAGNODE_ACCOUNT_ADMIN can specify a local account ID. This permission does not grant access to other encrypted vaults. VPN's local owner controls installation policy; HTTP Boot's private console credential controls its administrator profile. CLI is controlled by its local operating-system owner using `kagnode account sync on|off|status`; its existing account sign-in supplies the profile, and its browser examples provide the same preference.
+Mail administrators use the existing local administrator confirmation. Authenticator assigns profile-sync administration to the retained legacy vault owner, or the first local account when there is no migrated owner; KAGNODE_ACCOUNT_ADMIN can specify a local account ID. This permission does not grant access to other encrypted vaults. VPN's local owner controls installation policy; HTTP Boot's private console credential controls its administrator profile. Daemon is controlled by its local operating-system owner using `kagnode account sync on|off|status`; its existing account sign-in supplies the profile, and its browser examples provide the same preference.
 
 The new issuer endpoints are POST /api/v1/account-sync/device, POST /api/v1/account-sync/token, GET /api/v1/account-sync/profile?client_id=PROJECT and POST /api/v1/account-sync/revoke. They must exist on the configured KagNode Account server before linking succeeds. Local web controls use the app's existing session/CSRF mechanisms; Media versions them under /api/v1/kagnode-account.
 
@@ -22,7 +22,7 @@ The panel shows retry controls for failed loads and ignores late responses after
 
 ## Application update recovery
 
-The local-administration update panel shows recovery details and metadata filenames returned by KagNode CLI. Recovery, an active local operation or `can_apply: false` prevents an install action. A release check may replace a damaged candidate cache; installation state and operation records require administrator review rather than automatic deletion. New managers supply lock-backed `in_progress`; older managers retain phase-based display compatibility. Ordinary users receive no update controls.
+The local-administration update panel shows recovery details and metadata filenames returned by KagNode Daemon. Recovery, an active local operation or `can_apply: false` prevents an install action. A release check may replace a damaged candidate cache; installation state and operation records require administrator review rather than automatic deletion. New managers supply lock-backed `in_progress`; older managers retain phase-based display compatibility. Ordinary users receive no update controls.
 
 ## Login with KagNode
 
@@ -30,7 +30,7 @@ The shared Core sign-in frame keeps the application’s local form. Login with K
 
 New consent can include `profile.read email.read`: display name, photo and a currently verified contact email. Existing profile-only grants do not gain email access. The contact email is a profile display field; existing local login names, mailbox addresses, permissions and encrypted data are not silently changed. Accounts are never merged by matching email.
 
-Passwords offers vault initialization for a new verified KagNode subject because local signup is enabled. Choose a new master password explicitly. Existing linked vaults still require their master password to decrypt; KagNode identity does not contain a vault key or provide password recovery. An existing local email collision requires signing in locally and explicitly linking that account.
+Passwords asks an unfamiliar subject to choose Link existing account or Create account. Linking proves the existing vault password; creation respects the installation signup policy. Optional [managed unlock](MANAGED-UNLOCK.md) trusts KagNode's Rust key service, with explicit consent and a retained emergency password. Existing items are preserved during enrollment; local-only vaults continue using their password.
 
 A local administrator can disable profile synchronization and provider sign-in. Local sign-in remains available without KagNode, including when the issuer is offline. Cancel, expiry, policy changes and concurrent attempts cannot authorize a stale browser result. Anonymous attempts are bounded by expiry, one active attempt per browser, a global pool limit and start-rate limits. The callback claims an attempt atomically; an ambiguous token exchange must be restarted instead of replayed. The separate settings profile-link flow retains its existing bounded device-code confirmation.
 

@@ -202,6 +202,8 @@ window.KagNodeAccountRequest = async (action = "state", data = {}) => {
     : api("/kagnode-account", "POST", { action, ...data });
 };
 let providerAttempt = "";
+let providerIntent = "";
+let providerContinuation = null;
 let providerReady = false;
 window.KagNodeLoginHost = {
   state: () => ({
@@ -217,21 +219,41 @@ window.KagNodeLoginHost = {
     }
     return api("/kagnode-login", "POST", { action, ...data });
   },
-  complete: (result) => {
-    if (!["unlock", "setup"].includes(result.continuation))
+  complete: async (result) => {
+    if (result.continuation === "unlocked") {
+      state.csrf = result.csrf;
+      state.settings = result.settings;
+      state.account = result.account;
+      providerAttempt = "";
+      providerIntent = "";
+      return showDashboard();
+    }
+    if (!["unlock", "setup", "choose"].includes(result.continuation))
       throw new Error("Invalid vault continuation.");
     providerAttempt = result.attempt_id;
-    showAuth(result.continuation);
-    $("auth-email").value = result.email;
-    $("auth-email").readOnly = true;
-    $("provider-vault-note").textContent =
-      result.continuation === "unlock"
-        ? "KagNode identity confirmed. Your master password is still required to decrypt this vault."
-        : "KagNode identity confirmed. Choose a master password to create your encrypted vault. KagNode cannot recover or decrypt it.";
+    providerContinuation = result;
+    providerIntent = "";
+    showAuth(result.continuation === "choose" ? "unlock" : result.continuation);
+    $("provider-choice").hidden = result.continuation !== "choose";
+    $("provider-create-account").hidden = result.can_create === false;
+    $("auth-form").hidden = result.continuation === "choose";
+    $("auth-email").value =
+      result.continuation === "choose" ? "" : result.email;
+    $("auth-email").readOnly = result.continuation !== "choose";
+    $("provider-vault-note").textContent = result.migration
+      ? "Unlock once with your current password to enable KagNode unlock. Your saved items stay intact."
+      : result.continuation === "choose"
+        ? "Choose how to continue to Passwords."
+        : "Use your vault password to continue.";
+    $("provider-managed-wrap").hidden =
+      !result.managed_available || result.continuation === "choose";
+    $("provider-managed-consent").checked = false;
     $("provider-vault-note").hidden = false;
     $("provider-local-login").hidden = false;
     $("auth-switch").hidden = true;
-    if (!window.KagNodeLogin?.advance($("auth-form"), { focus: true }))
+    if (result.continuation === "choose") {
+      $("provider-link-existing").focus();
+    } else if (!window.KagNodeLogin?.advance($("auth-form"), { focus: true }))
       $("master-password").focus();
   },
 };
@@ -250,7 +272,12 @@ function showAuth(mode) {
   const signup = state.authMode === "setup";
   state.unlocked = false;
   if (!providerAttempt) {
+    providerIntent = "";
+    providerContinuation = null;
+    $("provider-choice").hidden = true;
+    $("provider-managed-wrap").hidden = true;
     $("auth-email").readOnly = false;
+    window.KagNodeLogin?.reset($("auth-form"));
     $("provider-vault-note").hidden = true;
     $("provider-local-login").hidden = true;
     $("auth-switch").hidden = false;
@@ -259,6 +286,7 @@ function showAuth(mode) {
   $("loading").hidden = true;
   $("dashboard").hidden = true;
   $("auth-screen").hidden = false;
+  $("auth-form").hidden = false;
   $("auth-email").value = email;
   $("auth-title").textContent = signup ? "Create an account" : "Sign in";
   $("auth-description").textContent = signup
@@ -281,7 +309,7 @@ function showAuth(mode) {
   $("master-password").type = "password";
   $("master-note").textContent = signup
     ? "This password encrypts your vault. Email cannot be used to reset it."
-    : "KagNode sign-in confirms your identity. Your master password is still required to decrypt the vault.";
+    : "Use your master password for local or emergency access.";
   $("auth-preview").hidden = !state.preview;
   $("provider-login").hidden = !state.providerEnabled;
   window.KagNodeLogin?.refresh();
@@ -1130,7 +1158,13 @@ function bind() {
         {
           email: $("auth-email").value,
           password,
-          ...(providerAttempt ? { provider_attempt: providerAttempt } : {}),
+          ...(providerAttempt
+            ? {
+                provider_attempt: providerAttempt,
+                provider_intent: providerIntent,
+                managed_unlock: $("provider-managed-consent").checked,
+              }
+            : {}),
         },
       );
       state.csrf = data.csrf;
@@ -1138,6 +1172,7 @@ function bind() {
       state.account = data.account;
       state.initialized = true;
       providerAttempt = "";
+      providerIntent = "";
       $("auth-email").readOnly = false;
       $("provider-vault-note").hidden = true;
       $("provider-local-login").hidden = true;
@@ -1170,6 +1205,29 @@ function bind() {
       }).catch(() => {});
     showAuth("unlock");
   });
+  for (const [id, intent] of [
+    ["provider-link-existing", "link"],
+    ["provider-create-account", "create"],
+  ]) {
+    $(id).addEventListener("click", () => {
+      if (!providerAttempt || !providerContinuation) return;
+      providerIntent = intent;
+      showAuth(intent === "create" ? "setup" : "unlock");
+      $("provider-choice").hidden = true;
+      $("auth-form").hidden = false;
+      $("auth-email").readOnly = intent === "create";
+      window.KagNodeLogin?.reset($("auth-form"));
+      $("auth-email").value =
+        intent === "create" ? providerContinuation.email : "";
+      $("provider-managed-wrap").hidden =
+        !providerContinuation.managed_available;
+      $("provider-vault-note").textContent =
+        intent === "create"
+          ? "Create an emergency password for your new vault."
+          : "Enter the email and password for the vault you want to link.";
+      $("auth-email").focus();
+    });
+  }
   $("lock-button").addEventListener("click", async () => {
     state.authTransition = true;
     try {

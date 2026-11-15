@@ -10,9 +10,9 @@ Independent email-based accounts with encrypted authenticator vaults and backup 
 
 ## Release status
 
-Product source: **5.0.2**. Stable source/data release: **5.0.2**.
+Product source: **5.0.3**. Stable source/data release: **5.0.3**.
 
-KagNode 5 uses the same locally served Core login frame and action icons across applications. Existing local sign-in, explicit KagNode connection, profile-sync policy, local roles and storage formats are preserved. A KagNode identity does not decrypt a vault; the master password and existing vault encryption remain required.
+KagNode 5 uses the same locally served Core login frame and action icons across applications. Existing local sign-in, explicit KagNode connection, profile-sync policy, local roles and storage formats are preserved. Optional [KagNode-managed unlock](docs/MANAGED-UNLOCK.md) uses explicit consent and a trusted Rust key service. Existing vaults require one successful password unlock to enroll; later KagNode sign-ins can unlock them. Emergency master-password access remains available. Local-only mode stays the default.
 
 Earlier packaging prereleases remain available. The 5.0 stable release is limited to the verified source/data and web-interface scope; native and hardware evidence remains separate. See [verification](docs/VERIFICATION.md) and [changelog](CHANGELOG.md).
 
@@ -27,7 +27,7 @@ The vault now uses a searchable list with folder/type filters and contextual det
 - Secure notes and folder labels alongside saved logins, TOTP and recovery codes.
 - Recoverable Trash with explicit restore and permanent removal.
 - Optional Vaultwarden service for Bitwarden browser extensions and mobile applications. Existing vault data transfers only through an explicit export/import; the two stores do not silently synchronize.
-- Local-administrator update controls backed by the KagNode CLI manager.
+- Local-administrator update controls backed by the KagNode Daemon manager.
 - Separate encrypted vaults for multiple email accounts.
 - TOTP entries, passwords and backup-code storage.
 - Dedicated account and vault routes, export and recovery controls.
@@ -83,7 +83,7 @@ python3 scripts/format_source.py --check
 python3 scripts/release.py --output dist/packages
 ```
 
-Install the formatting dependencies from `requirements-format.txt`. Package building additionally needs `dpkg-deb`, `rpmbuild`, XZ support and, for CLI binaries, Go. Read [the repository map](docs/STRUCTURE.md) before editing generated files.
+Install the formatting dependencies from `requirements-format.txt`. Package building additionally needs `dpkg-deb`, `rpmbuild`, XZ support and Rust 1.88+ to build the optional issuer key service. Read [the repository map](docs/STRUCTURE.md) before editing generated files.
 
 ## Documentation
 

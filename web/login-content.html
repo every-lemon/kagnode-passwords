@@ -47,6 +47,20 @@
   </button>
 </form>
 <p id="provider-vault-note" role="status" hidden></p>
+<div id="provider-choice" hidden>
+  <p>Continue with an existing vault, or create a separate account.</p>
+  <button type="button" id="provider-link-existing" class="button secondary">
+    Link existing account
+  </button>
+  <button type="button" id="provider-create-account" class="button secondary">
+    Create account
+  </button>
+</div>
+<label id="provider-managed-wrap" hidden
+  ><input type="checkbox" id="provider-managed-consent" /> Enable KagNode
+  unlock. KagNode's key service can unlock this vault after sign-in. Keep your
+  emergency master password for outages or disconnection.</label
+>
 <a id="provider-local-login" href="/unlock" hidden>Use local sign-in</a>
 <p id="master-note">
   Your master password encrypts your vault. Keep it somewhere safe — it cannot

@@ -7,3 +7,8 @@ AUTHENTACTOR_DATA=/var/lib/authentactor
 
 # Required only when assigning an existing single-owner vault on first upgrade.
 # AUTHENTACTOR_LEGACY_EMAIL=owner@example.com
+
+# Optional trusted KagNode key-service enrollment; local-only remains default.
+# KAGNODE_PASSWORDS_MANAGED_UNLOCK=1
+# Disable local and KagNode-driven new account creation with 0.
+# KAGNODE_PASSWORDS_SIGNUP=0
