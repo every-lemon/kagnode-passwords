@@ -8,6 +8,24 @@ KagNode Passwords is the new name for KagNode Authenticator. Existing emails, ma
 
 Independent email-based accounts with encrypted authenticator vaults and backup codes.
 
+### What it looks like
+
+Screenshots come from a disposable test preview with sample credentials. No real vault or account is shown.
+
+| Sign in                                                                       | Overview                                                                           |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| ![The sign-in page](docs/images/signin.png)                                   | ![The vault overview with the sidebar of vault sections](docs/images/overview.png) |
+| ![Recovery codes stored with their used status](docs/images/backup-codes.png) | ![The authenticators list on a phone](docs/images/mobile-authenticators.png)       |
+
+### How it works
+
+1. **One encrypted vault per email account.** Each account keeps its own vault of saved logins, one-time-code (TOTP) entries, recovery codes and secure notes, with folder labels.
+2. **Your master password stays required.** A KagNode identity can sign you in, but it never decrypts a vault; the master password and the existing vault encryption are still needed.
+3. **Mistakes are recoverable.** Deleted items go to Trash and return only when you restore them; nothing is removed for good until you ask.
+4. **Search and tools.** Quick search (Ctrl K) finds entries; a password generator and a security check help keep entries strong.
+5. **Optional Bitwarden apps.** An optional Vaultwarden service lets Bitwarden browser extensions and mobile apps connect. Your existing vault is not synchronized silently: items move only through an explicit export and import.
+6. **Administrator controls.** Updates are controlled by the local administrator through the KagNode CLI manager.
+
 ## Release status
 
 Product source: **5.0.3**. Stable source/data release: **5.0.3**.
@@ -42,17 +60,17 @@ Python 3.12 for the validated development environment; HTTPS for remote use. See
 
 Download from [GitHub Releases](https://github.com/every-lemon/kagnode-passwords/releases). Verify `SHA256SUMS` before extracting or installing a package.
 
-| Payload | Formats | Support |
-| --- | --- | --- |
-| Complete source / artwork | `.tar.xz`, `.tar.gz`, `.zip` | Named top-level directory; manual setup |
-| Source/data | `.deb` | Source only; does not provision a service |
-| Source/data | `.rpm` | Rocky Linux 10 source package; no native service qualification |
+| Payload                   | Formats                      | Support                                                        |
+| ------------------------- | ---------------------------- | -------------------------------------------------------------- |
+| Complete source / artwork | `.tar.xz`, `.tar.gz`, `.zip` | Named top-level directory; manual setup                        |
+| Source/data               | `.deb`                       | Source only; does not provision a service                      |
+| Source/data               | `.rpm`                       | Rocky Linux 10 source package; no native service qualification |
 
 The GitHub repository is now `every-lemon/kagnode-passwords`. Existing native and source-package identities remain compatible.
 
 The existing `authentactor` Debian package builder remains in packaging/build-deb.sh.
 
-Source packages install under `/usr/share/kagnode/`; they do not replace an existing application, migrate data, start services or configure networking.  See [package details](docs/PACKAGING.md).
+Source packages install under `/usr/share/kagnode/`; they do not replace an existing application, migrate data, start services or configure networking. See [package details](docs/PACKAGING.md).
 
 ## Usage
 
