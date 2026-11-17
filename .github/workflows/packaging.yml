@@ -37,9 +37,38 @@ jobs:
         with:
           name: packaging-preview
           path: dist/packages/
-  publish:
+  signature:
     if: startsWith(github.ref, 'refs/tags/packages/v') || startsWith(github.ref, 'refs/tags/v')
     needs: packages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: packaging-preview
+          path: ${{ runner.temp }}/passwords-release
+      - name: Require independent trust and authenticated candidate before publication
+        env:
+          KAGNODE_PASSWORDS_RELEASE_PUBLIC_KEY_PEM: ${{ vars.KAGNODE_PASSWORDS_RELEASE_PUBLIC_KEY_PEM }}
+        run: |
+          set -eu
+          if [ -z "$KAGNODE_PASSWORDS_RELEASE_PUBLIC_KEY_PEM" ]; then
+            printf '%s\n' 'Publication blocked: no reviewed independent application release trust anchor.' >&2
+            exit 1
+          fi
+          if [ ! -f "$RUNNER_TEMP/passwords-release/release-manifest.sig" ]; then
+            printf '%s\n' 'Publication blocked: legacy unsigned source packages are not authenticated release candidates.' >&2
+            exit 1
+          fi
+          printf '%s\n' "$KAGNODE_PASSWORDS_RELEASE_PUBLIC_KEY_PEM" > "$RUNNER_TEMP/passwords-release-trust.pem"
+          cargo run --locked --manifest-path tools/release/Cargo.toml -- verify "$GITHUB_WORKSPACE" "$RUNNER_TEMP/passwords-release" "$RUNNER_TEMP/passwords-release-trust.pem"
+  publish:
+    if: startsWith(github.ref, 'refs/tags/packages/v') || startsWith(github.ref, 'refs/tags/v')
+    needs: [packages, signature]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
