@@ -466,3 +466,12 @@ fn candidate_directory_enumeration_has_a_fixed_file_bound() {
             .contains("file count exceeds bound")
     );
 }
+
+#[test]
+fn pinned_checkout_disabled_gc_is_supported_without_accepting_other_policy() {
+    let f = Fixture::new();
+    cmd(&f.root, &["config", "gc.auto", "0"]);
+    assert!(prepare(&f.root, &f.out("good"), &f.trust).is_ok());
+    cmd(&f.root, &["config", "gc.auto", "1"]);
+    assert!(prepare(&f.root, &f.out("bad"), &f.trust).is_err());
+}

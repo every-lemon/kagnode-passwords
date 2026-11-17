@@ -282,9 +282,13 @@ fn repository(root: &Path) -> Result<PathBuf> {
                 | "user.email"
                 | "remote.origin.url"
                 | "remote.origin.fetch"
+                | "gc.auto"
         ) || key.starts_with("branch.")
             && (key.ends_with(".remote") || key.ends_with(".merge"));
         ensure!(allowed, "Unsupported Git configuration key");
+        if key == "gc.auto" {
+            ensure!(value == "0", "Only disabled automatic Git GC is supported");
+        }
         if key == "remote.origin.url" {
             ensure!(
                 (value == format!("https://github.com/{}.git", product::SOURCE_REPOSITORY)
@@ -477,7 +481,11 @@ fn public_key(path: &Path, root: &Path, candidate: Option<&Path>) -> Result<(Vec
         !absolute.starts_with(root) && candidate.is_none_or(|c| !absolute.starts_with(c)),
         "Trust must come from outside source/candidate, not a bundled key"
     );
-    let (bytes, _) = regular(path, 1024)?;
+    let (bytes, opened_meta) = regular(path, 1024)?;
+    ensure!(
+        same_file(&key_meta, &opened_meta),
+        "Trust identity changed before bounded read"
+    );
     let mut c = Command::new("/usr/bin/openssl");
     c.args(["pkey", "-pubin", "-in", "/dev/stdin", "-outform", "DER"]);
     let der = engine(c, Some(&bytes), 128)?;
@@ -768,6 +776,10 @@ pub fn sign(
     );
     let (private, meta) = regular(secret, 1024)?;
     let private = Zeroizing::new(private);
+    ensure!(
+        same_file(&secret_meta, &meta),
+        "Signing identity changed before bounded read"
+    );
     ensure!(
         meta.uid() == unsafe { libc::geteuid() } && meta.mode() & 0o077 == 0,
         "Signing identity must be private and owned by caller"
