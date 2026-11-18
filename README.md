@@ -13,14 +13,14 @@ Screenshots come from a disposable test preview with sample credentials.
 | ![The sign-in page](docs/images/signin.png)                                   | ![The vault overview with the sidebar of vault sections](docs/images/overview.png) |
 | ![Recovery codes stored with their used status](docs/images/backup-codes.png) | ![The authenticators list on a phone](docs/images/mobile-authenticators.png)       |
 
-| Step                                  | Detail                                                                                                                                     |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| One encrypted vault per email account | Each account keeps its own vault of saved logins, one-time-code (TOTP) entries, recovery codes and secure notes, with folder labels.       |
-| Your master password stays required   | A KagNode identity can sign you in, but it never decrypts a vault; the master password and the existing vault encryption are still needed. |
-| Mistakes are recoverable              | Deleted items go to Trash and return only when you restore them; nothing is removed for good until you ask.                                |
-| Search and tools                      | Quick search (Ctrl K) finds entries; a password generator and a security check help keep entries strong.                                   |
-| Optional Bitwarden apps               | An optional Vaultwarden service lets Bitwarden browser extensions and mobile apps connect.                                                 |
-| Administrator controls                | Updates are controlled by the local administrator through the KagNode CLI manager.                                                         |
+| Step                                  | Detail                                                                                                                                                                                                     |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| One encrypted vault per email account | Each account keeps its own vault of saved logins, one-time-code (TOTP) entries, recovery codes and secure notes, with folder labels.                                                                       |
+| Master password stays your fallback   | A KagNode sign-in does not unlock a vault by itself. Unlock needs your master password unless you opt in to [managed unlock](docs/MANAGED-UNLOCK.md), which keeps the master password as emergency access. |
+| Mistakes are recoverable              | Deleted items go to Trash and return only when you restore them; nothing is removed for good until you ask.                                                                                                |
+| Search and tools                      | Quick search (Ctrl K) finds entries; a password generator and a security check help keep entries strong.                                                                                                   |
+| Optional Bitwarden apps               | An optional Vaultwarden service lets Bitwarden browser extensions and mobile apps connect.                                                                                                                 |
+| Administrator controls                | Updates are controlled by the local administrator through the `kagnode` command (KagNode. Daemon).                                                                                                         |
 
 ## Release status
 
